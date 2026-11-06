@@ -223,6 +223,9 @@ const App = {
     if (DB.loadError) {
       setTimeout(() => this.notify(DB.recoveredFromBackup ? 'Data backup copy se wapas laya gaya hai — sab kuch mehfooz hai' : 'Masla: ' + DB.loadError, DB.recoveredFromBackup ? 'warning' : 'error'), 400);
     }
+    // Self auto-update: listen for main-process update events (progress,
+    // ready-to-install, errors) and show them as Roman Urdu notices.
+    try { this.initUpdateBridge(); } catch (e) { /* updates are optional */ }
     this.renderLogin();
   },
 
@@ -579,7 +582,9 @@ const App = {
   },
 
   /* ----- notices: 9s auto-dismiss with progress bar + X ----- */
-  notify(msg, type) {
+  // action is optional: { label, onClick } adds one button to the notice
+  // (used by the auto-update "Restart Karein" prompt).
+  notify(msg, type, action) {
     const t = type || 'info';
     const stack = document.getElementById('notice-stack');
     if (!stack) return;
@@ -588,8 +593,119 @@ const App = {
       '<span class="notice-bar"></span></div>');
     const dismiss = () => { if (n.parentNode) n.parentNode.removeChild(n); };
     n.querySelector('.notice-x').addEventListener('click', dismiss);
+    if (action && action.label && typeof action.onClick === 'function') {
+      const b = el('<button type="button" class="btn btn-primary" style="margin-left:8px;padding:4px 10px">' + esc(action.label) + '</button>');
+      b.addEventListener('click', () => { dismiss(); try { action.onClick(); } catch (e) { /* ignore */ } });
+      n.insertBefore(b, n.querySelector('.notice-x'));
+    }
     stack.appendChild(n);
     setTimeout(dismiss, 9000);
+  },
+
+  /* ----- self auto-update bridge (main process owns the updater) ----- */
+  update: { state: null, downloadedVersion: null, lastProgressBucket: -1 },
+  initUpdateBridge() {
+    let ipc = null;
+    try { ipc = require('electron').ipcRenderer; } catch (e) { ipc = null; }
+    if (!ipc) return;
+    this._updateIpc = ipc;
+    // Ask main for the current update state (version, token saved?,
+    // auto-check on?, last check). Stored on App.update.state.
+    const refresh = () => {
+      try {
+        ipc.invoke('update-get-state').then((s) => {
+          this.update.state = s || null;
+          this.renderUpdateStatus();
+        }).catch(() => { /* ignore */ });
+      } catch (e) { /* ignore */ }
+    };
+    this._refreshUpdateState = refresh;
+    refresh();
+    ipc.on('update-event', (_e, evt) => {
+      if (!evt || !evt.type) return;
+      if (evt.type === 'status' && evt.status) {
+        if (this.update.state) this.update.state.status = evt.status;
+        if (evt.lastCheck && this.update.state) this.update.state.lastCheck = evt.lastCheck;
+        this.renderUpdateStatus();
+        return;
+      }
+      if (evt.type === 'no-token') {
+        if (this.update.state) { this.update.state.status = 'no-token'; this.update.state.hasToken = false; }
+        this.notify(evt.message || 'Update ke liye token chahiye — Settings > Updates me GitHub token dalein', 'warning');
+        this.renderUpdateStatus();
+        return;
+      }
+      if (evt.type === 'available') {
+        if (this.update.state) this.update.state.status = 'available';
+        this.notify('Naya version ' + (evt.version || '') + ' mil gaya — download ho raha hai…', 'success');
+        this.renderUpdateStatus();
+        return;
+      }
+      if (evt.type === 'none') {
+        if (this.update.state) this.update.state.status = 'none';
+        this.notify(evt.message || 'App pehle se latest version par hai', 'success');
+        this.renderUpdateStatus();
+        return;
+      }
+      if (evt.type === 'progress') {
+        const pct = Math.round(evt.percent || 0);
+        const bucket = Math.floor(pct / 25);
+        if (bucket === this.update.lastProgressBucket) return;
+        this.update.lastProgressBucket = bucket;
+        this.notify('Update download ho raha hai… ' + pct + '%', 'info');
+        return;
+      }
+      if (evt.type === 'downloaded') {
+        this.update.downloadedVersion = evt.version || '';
+        if (this.update.state) { this.update.state.status = 'downloaded'; this.update.state.downloadedVersion = evt.version || ''; }
+        this.notify('Update ' + (evt.version || '') + ' download ho gaya — restart kar ke lagayein', 'success', {
+          label: 'Restart Karein aur Update Lagayein',
+          onClick: () => this.installUpdate(),
+        });
+        this.renderUpdateStatus();
+        return;
+      }
+      if (evt.type === 'error') {
+        if (this.update.state) this.update.state.status = 'error';
+        this.notify('Masla: ' + (evt.message || 'Update check nahi ho saka — dobara koshish karein'), 'error');
+        this.renderUpdateStatus();
+        return;
+      }
+    });
+  },
+  // Updates the status line inside Settings > Updates, if it is on screen.
+  renderUpdateStatus() {
+    const elStatus = document.getElementById('upd-status');
+    if (!elStatus) return;
+    const s = this.update.state;
+    if (!s) { elStatus.textContent = 'Status maloom nahi'; return; }
+    const map = {
+      idle: 'Abhi tak check nahi hua',
+      checking: 'Update check ho raha hai…',
+      available: 'Naya version mil gaya — download ho raha hai…',
+      none: 'App latest version par hai',
+      downloaded: 'Update download ho gaya — restart kar ke lagayein' + (s.downloadedVersion ? ' (v' + s.downloadedVersion + ')' : ''),
+      'no-token': 'Token nahi dala gaya — update check ke liye token chahiye',
+      error: 'Aakhri check nahi ho saka — dobara koshish karein',
+    };
+    elStatus.textContent = map[s.status] || s.status;
+    const lastEl = document.getElementById('upd-last-check');
+    if (lastEl) lastEl.textContent = s.lastCheck ? new Date(s.lastCheck).toLocaleString('en-GB') : 'Abhi tak koi check nahi hua';
+    const verEl = document.getElementById('upd-version');
+    if (verEl) verEl.textContent = 'v' + (s.version || '?');
+    const restartBtn = document.getElementById('upd-restart');
+    if (restartBtn) restartBtn.style.display = s.status === 'downloaded' ? '' : 'none';
+  },
+  checkForUpdates() {
+    try { if (this._updateIpc) this._updateIpc.send('update-check-now'); } catch (e) { /* ignore */ }
+    this.notify('Update check ho raha hai…', 'info');
+  },
+  installUpdate() {
+    // Confirm first — a restart closes the shop screen mid-sale otherwise.
+    this.confirmDialog('Restart Karein aur Update Lagayein?', 'App band ho kar naya version install karega aur dobara khul jayega. Agar koi sale adhuri hai to pehle use complete ya cancel karein.').then((ok) => {
+      if (!ok) return;
+      try { if (this._updateIpc) this._updateIpc.send('update-quit-install'); } catch (e) { /* ignore */ }
+    });
   },
 
   /* ----- in-app confirm dialog (replaces window.confirm) ----- */
