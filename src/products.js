@@ -15,6 +15,15 @@ function save() { if (window.App) window.App.save(); else { try { DB.save(); } c
 function money(n) { return window.App.money(n); }
 function notify(m, t) { window.App.notify(m, t); }
 function productImage(p) { return p.imageData || p.image || ''; }
+// Fast page loading (item 1): search waits 150 ms after the last keypress.
+function debounce(fn, ms) {
+  let t = null;
+  return function () {
+    const args = arguments, ctx = this;
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(ctx, args), ms || 150);
+  };
+}
 
 function renderProducts(container) {
   container.innerHTML = '';
@@ -98,7 +107,7 @@ function renderProducts(container) {
     tableWrap.appendChild(card);
   }
   drawTable('');
-  searchRow.querySelector('#prod-search').addEventListener('input', (e) => drawTable(e.target.value));
+  searchRow.querySelector('#prod-search').addEventListener('input', debounce((e) => drawTable(e.target.value), 150));
 
   function showForm(wrap, product, containerEl) {
     wrap.innerHTML = '';
@@ -190,14 +199,20 @@ function renderProducts(container) {
       const barcode = (inputs.barcode ? inputs.barcode.value : '').trim();
       if (!name) { notify('Product ka naam zaroori hai', 'warning'); return; }
       if (price <= 0) { notify('Sale price 0 se zyada hona chahiye', 'warning'); return; }
-      // Duplicate SKU / barcode rejected with a clear notice.
-      const dup = (st.products || []).find((x) => {
-        if (isEdit && String(x.id) === String(p.id)) return false;
-        if (sku && String(x.sku || '').trim() && String(x.sku).trim().toLowerCase() === sku.toLowerCase()) return true;
-        if (barcode && String(x.barcode || '').trim() && String(x.barcode).trim() === barcode) return true;
-        return false;
-      });
-      if (dup) { notify('SKU ya Barcode pehle se mojood hai — duplicate allow nahi (' + (dup.name || '') + ')', 'error'); return; }
+      // Duplicate SKU / barcode rejected at the data layer (item 3) —
+      // the same check the database enforces, not just this form.
+      if (DB.checkUniqueness) {
+        const chk = DB.checkUniqueness('products', { sku, barcode }, isEdit ? p.id : null);
+        if (!chk.ok) { notify(chk.message, 'error'); return; }
+      } else {
+        const dup = (st.products || []).find((x) => {
+          if (isEdit && String(x.id) === String(p.id)) return false;
+          if (sku && String(x.sku || '').trim() && String(x.sku).trim().toLowerCase() === sku.toLowerCase()) return true;
+          if (barcode && String(x.barcode || '').trim() && String(x.barcode).trim() === barcode) return true;
+          return false;
+        });
+        if (dup) { notify('SKU ya Barcode pehle se mojood hai — duplicate allow nahi (' + (dup.name || '') + ')', 'error'); return; }
+      }
       const data = {
         name, price,
         purchasePrice: inputs.purchasePrice ? (Number(inputs.purchasePrice.value) || 0) : (isEdit ? Number(p.purchasePrice) || 0 : 0),
