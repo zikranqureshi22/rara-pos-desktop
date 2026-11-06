@@ -19,10 +19,26 @@ npm start
 
 The NSIS installer (`.exe`) **cannot be built on Linux** — electron-builder needs Windows to produce it. Two routes:
 
-1. **GitHub Actions (recommended):** push a tag like `v1.0.0`, or run the "Build Windows installer" workflow manually from the Actions tab. It runs on `windows-latest` and uploads the `.exe` as an artifact. See `INSTALL.md` for the laptop steps.
+1. **GitHub Actions (recommended):** push a tag like `v1.1.0`, or run the "Build Windows installer" workflow manually from the Actions tab. It runs on `windows-latest`, **publishes a GitHub Release** (installer `.exe` + `latest.yml`, so installed apps can update themselves — see "Self auto-update" below) and also uploads the `.exe` as an artifact. See `INSTALL.md` for the laptop steps.
 2. **On a Windows machine:** `npm install` then `npm run build`. The installer appears in `dist/`.
 
 `npm run pack` builds an unpacked Windows folder instead of an installer (`electron-builder --win --dir`).
+
+## Self auto-update (no more manual reinstalls)
+
+Once installed from v1.1.0, the app updates itself:
+
+- On startup (after a short delay, so first paint is never blocked) it checks the project's GitHub Releases for a newer version. If one exists it downloads it in the background, shows the download progress as a notice, and when ready asks to **Restart Karein aur Update Lagayein** — one restart and the new version is installed. Data is never touched by an update.
+- **Settings > Updates** shows the current version, last check, and status, with a manual **Update Check Karein** button and an auto-check toggle (default ON).
+
+**One-time token (Owner only, because the repo is private):** GitHub Releases in a private repo cannot be downloaded without authentication, so the Owner pastes a read-only token **once** in Settings > Updates. It is a **fine-grained personal access token** with read-only access to this one repo only (Contents: Read-only), created at GitHub → photo → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token → select only `rara-pos-desktop` → Contents: Read-only. The token is stored only on that laptop (app-data folder), never in the repo or code, and can be revoked/rotated anytime on GitHub. Without a token the app still works normally — update checks just report that the token is needed.
+
+## Releasing a new version (for the developer)
+
+1. Bump `version` in `package.json` (e.g. `1.1.0` → `1.2.0`).
+2. Commit and push to `main`.
+3. Run the **"Build Windows installer"** workflow from the Actions tab (or push a tag like `v1.2.0`).
+4. The workflow publishes a GitHub Release with the installer and `latest.yml`. Installed apps pick it up on their next check — no manual reinstall.
 
 ## Data location
 
