@@ -1,0 +1,1098 @@
+{
+  "_note": "Seeded from the live Muse POS database 2026-11-06 (read-only). B4 Berry purchasePrice is the real user-entered cost Rs 1,254 (other products 0 until the Owner enters real costs — profit is overstated until then). Transfers (10) and stock movements (30) carried over as history. appUsers intentionally empty: PINs are not migrated; Owner and cashier set new PINs on first launch. Separate system from Muse POS, no sync.",
+  "products": [
+    {
+      "id": 1,
+      "name": "B4 Berry",
+      "price": 3000,
+      "purchasePrice": 1254,
+      "wholesalePrice": 0,
+      "franchisePrice": 2300,
+      "size": "50 ml",
+      "category": "Perfume",
+      "brand": "RARA",
+      "color": "",
+      "supplierName": "RARA",
+      "sku": "RARA-B4B-50-002",
+      "barcode": "",
+      "notes": "Top: Green Leaves, Apple · Middle: Lotus, Mimosa · Base: Musk, Cedar, Oakmoss, Amber",
+      "lowThreshold": 10,
+      "status": "active",
+      "stock": 598,
+      "branchStocks": [
+        {
+          "branchId": 1,
+          "qty": 399
+        },
+        {
+          "branchId": 2,
+          "qty": 99
+        },
+        {
+          "branchId": 3,
+          "qty": 100
+        }
+      ],
+      "image": "assets/products/b4berry.png"
+    },
+    {
+      "id": 2,
+      "name": "GHAZAL By RARA",
+      "price": 3199,
+      "purchasePrice": 0,
+      "wholesalePrice": 0,
+      "franchisePrice": 0,
+      "size": "50 ml",
+      "category": "Perfume",
+      "brand": "",
+      "color": "",
+      "supplierName": "",
+      "sku": "",
+      "barcode": "",
+      "notes": "Top: Black Currant, Saffron · Middle: Rose · Base: Amber, Patchouli",
+      "lowThreshold": 10,
+      "status": "active",
+      "stock": 596,
+      "branchStocks": [
+        {
+          "branchId": 1,
+          "qty": 400
+        },
+        {
+          "branchId": 2,
+          "qty": 96
+        },
+        {
+          "branchId": 3,
+          "qty": 100
+        }
+      ],
+      "image": "assets/products/ghazal.png"
+    },
+    {
+      "id": 3,
+      "name": "ONE DAY",
+      "price": 2999,
+      "purchasePrice": 0,
+      "wholesalePrice": 0,
+      "franchisePrice": 0,
+      "size": "50 ml",
+      "category": "Perfume",
+      "brand": "",
+      "color": "",
+      "supplierName": "",
+      "sku": "",
+      "barcode": "",
+      "notes": "Citrus, Marine, Floral, Woody · Lasting 12+ Hours · Projection 4+ Hours",
+      "lowThreshold": 10,
+      "status": "active",
+      "stock": 508,
+      "branchStocks": [
+        {
+          "branchId": 1,
+          "qty": 300
+        },
+        {
+          "branchId": 2,
+          "qty": 108
+        },
+        {
+          "branchId": 3,
+          "qty": 100
+        }
+      ],
+      "image": "assets/products/oneday.png"
+    },
+    {
+      "id": 4,
+      "name": "Mazdigar Da Bannugull",
+      "price": 2299,
+      "purchasePrice": 0,
+      "wholesalePrice": 0,
+      "franchisePrice": 0,
+      "size": "50 ml",
+      "category": "Perfume",
+      "brand": "",
+      "color": "",
+      "supplierName": "",
+      "sku": "",
+      "barcode": "",
+      "notes": "Top: Green Mandarin, Bergamot, Marine · Heart: Rosemary, Lavender, Cypress · Base: Patchouli, Musk, Mineral Amber",
+      "lowThreshold": 10,
+      "status": "active",
+      "stock": 604,
+      "branchStocks": [
+        {
+          "branchId": 1,
+          "qty": 399
+        },
+        {
+          "branchId": 2,
+          "qty": 105
+        },
+        {
+          "branchId": 3,
+          "qty": 100
+        }
+      ],
+      "image": "assets/products/mazdigar.png"
+    },
+    {
+      "id": 5,
+      "name": "Night Bloom",
+      "price": 1799,
+      "purchasePrice": 0,
+      "wholesalePrice": 0,
+      "franchisePrice": 0,
+      "size": "50 ml",
+      "category": "Perfume",
+      "brand": "",
+      "color": "",
+      "supplierName": "",
+      "sku": "",
+      "barcode": "",
+      "notes": "Top: Aldehydes, Ginger, Grapefruit, Apple · Heart: Sage, Lavender, Geranium · Base: Cedar, Tonka Bean, Olibanum, Patchouli",
+      "lowThreshold": 10,
+      "status": "active",
+      "stock": 598,
+      "branchStocks": [
+        {
+          "branchId": 1,
+          "qty": 396
+        },
+        {
+          "branchId": 2,
+          "qty": 102
+        },
+        {
+          "branchId": 3,
+          "qty": 100
+        }
+      ],
+      "image": "assets/products/nightbloom.png"
+    },
+    {
+      "id": 6,
+      "name": "Signature",
+      "price": 1700,
+      "purchasePrice": 0,
+      "wholesalePrice": 0,
+      "franchisePrice": 0,
+      "size": "50 ml",
+      "category": "Perfume",
+      "brand": "",
+      "color": "",
+      "supplierName": "",
+      "sku": "",
+      "barcode": "",
+      "notes": "Top: Cinnamon, Nutmeg, Cardamom, Grapefruit · Middle: Lavender · Base: Licorice, Sandalwood, Amber, Patchouli, Haitian Vetiver · Lasting 8-9 Hours",
+      "lowThreshold": 10,
+      "status": "active",
+      "stock": 500,
+      "branchStocks": [
+        {
+          "branchId": 2,
+          "qty": 500
+        }
+      ],
+      "image": "assets/products/signature.png"
+    }
+  ],
+  "branches": [
+    {
+      "id": 1,
+      "name": "Main Warehouse",
+      "type": "warehouse",
+      "ownerName": "Zikran Zahid",
+      "phone": "03316744226",
+      "address": "rara outlet near laddy park railway road bannu city"
+    },
+    {
+      "id": 2,
+      "name": "RARA Outlet BANNU CITY Railwyroad",
+      "type": "outlet",
+      "ownerName": "Zikran Zahid",
+      "phone": "03368347648",
+      "address": "rara outlet near laddy park railwayroad bannu city"
+    },
+    {
+      "id": 3,
+      "name": "RARA Township",
+      "type": "franchise",
+      "ownerName": "shahid khan",
+      "phone": "0337-59 65 366",
+      "address": "RARA Outlet main linkroad chowk Bannu Township"
+    }
+  ],
+  "sales": [
+    {
+      "id": 1,
+      "branchId": null,
+      "branchName": "",
+      "createdAt": "2026-11-05T18:46:12.181000Z",
+      "customerId": null,
+      "customerName": "zikran zahid",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": 2,
+          "productName": "GHAZAL By RARA",
+          "qty": 1,
+          "unitPrice": 3199,
+          "lineDiscount": 0,
+          "lineTotal": 3199
+        }
+      ],
+      "subtotal": 3199,
+      "discount": 100,
+      "total": 3099,
+      "paidAmount": 3099,
+      "balanceDue": 0,
+      "paymentMethod": "Cash",
+      "returns": []
+    },
+    {
+      "id": 2,
+      "branchId": null,
+      "branchName": "",
+      "createdAt": "2026-11-05T18:50:23.478000Z",
+      "customerId": null,
+      "customerName": "",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": 2,
+          "productName": "GHAZAL By RARA",
+          "qty": 1,
+          "unitPrice": 3199,
+          "lineDiscount": 0,
+          "lineTotal": 3199
+        }
+      ],
+      "subtotal": 3199,
+      "discount": 0,
+      "total": 3199,
+      "paidAmount": 3199,
+      "balanceDue": 0,
+      "paymentMethod": "Cash",
+      "returns": []
+    },
+    {
+      "id": 3,
+      "branchId": null,
+      "branchName": "",
+      "createdAt": "2026-11-05T18:50:41.366000Z",
+      "customerId": null,
+      "customerName": "",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": 2,
+          "productName": "GHAZAL By RARA",
+          "qty": 1,
+          "unitPrice": 3199,
+          "lineDiscount": 0,
+          "lineTotal": 3199
+        }
+      ],
+      "subtotal": 3199,
+      "discount": 0,
+      "total": 3199,
+      "paidAmount": 3199,
+      "balanceDue": 0,
+      "paymentMethod": "Cash",
+      "returns": []
+    },
+    {
+      "id": 4,
+      "branchId": 2,
+      "branchName": "RARA Outlet BANNU CITY Railwyroad",
+      "createdAt": "2026-11-05T19:28:39.688000Z",
+      "customerId": null,
+      "customerName": "",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": 2,
+          "productName": "GHAZAL By RARA",
+          "qty": 1,
+          "unitPrice": 3199,
+          "lineDiscount": 0,
+          "lineTotal": 3199
+        }
+      ],
+      "subtotal": 3199,
+      "discount": 0,
+      "total": 3199,
+      "paidAmount": 3199,
+      "balanceDue": 0,
+      "paymentMethod": "Cash",
+      "returns": []
+    },
+    {
+      "id": 5,
+      "branchId": 1,
+      "branchName": "Main Warehouse",
+      "createdAt": "2026-11-05T20:22:30.933000Z",
+      "customerId": null,
+      "customerName": "fahad shah",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": 1,
+          "productName": "B4 Berry",
+          "qty": 1,
+          "unitPrice": 3000,
+          "lineDiscount": 0,
+          "lineTotal": 3000
+        },
+        {
+          "productId": 4,
+          "productName": "Mazdigar Da Bannugull",
+          "qty": 1,
+          "unitPrice": 2299,
+          "lineDiscount": 0,
+          "lineTotal": 2299
+        }
+      ],
+      "subtotal": 5299,
+      "discount": 0,
+      "total": 5299,
+      "paidAmount": 5299,
+      "balanceDue": 0,
+      "paymentMethod": "Cash",
+      "returns": []
+    },
+    {
+      "id": 6,
+      "branchId": 2,
+      "branchName": "RARA Outlet BANNU CITY Railwyroad",
+      "createdAt": "2026-11-05T21:06:18.085000Z",
+      "customerId": null,
+      "customerName": "",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": 4,
+          "productName": "Mazdigar Da Bannugull",
+          "qty": 1,
+          "unitPrice": 2299,
+          "lineDiscount": 0,
+          "lineTotal": 2299
+        }
+      ],
+      "subtotal": 2299,
+      "discount": 0,
+      "total": 2299,
+      "paidAmount": 2299,
+      "balanceDue": 0,
+      "paymentMethod": "Cash",
+      "returns": []
+    },
+    {
+      "id": 7,
+      "branchId": 2,
+      "branchName": "RARA Outlet BANNU CITY Railwyroad",
+      "createdAt": "2026-11-05T21:14:59.756000Z",
+      "customerId": null,
+      "customerName": "",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": 4,
+          "productName": "Mazdigar Da Bannugull",
+          "qty": 1,
+          "unitPrice": 2299,
+          "lineDiscount": 0,
+          "lineTotal": 2299
+        }
+      ],
+      "subtotal": 2299,
+      "discount": 0,
+      "total": 2299,
+      "paidAmount": 2299,
+      "balanceDue": 0,
+      "paymentMethod": "Cash",
+      "returns": []
+    },
+    {
+      "id": 8,
+      "branchId": 2,
+      "branchName": "RARA Outlet BANNU CITY Railwyroad",
+      "createdAt": "2026-11-05T21:15:01.199000Z",
+      "customerId": null,
+      "customerName": "",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": 4,
+          "productName": "Mazdigar Da Bannugull",
+          "qty": 1,
+          "unitPrice": 2299,
+          "lineDiscount": 0,
+          "lineTotal": 2299
+        }
+      ],
+      "subtotal": 2299,
+      "discount": 0,
+      "total": 2299,
+      "paidAmount": 2299,
+      "balanceDue": 0,
+      "paymentMethod": "Cash",
+      "returns": []
+    },
+    {
+      "id": 9,
+      "branchId": 2,
+      "branchName": "RARA Outlet BANNU CITY Railwyroad",
+      "createdAt": "2026-11-05T21:15:01.627000Z",
+      "customerId": null,
+      "customerName": "",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": 4,
+          "productName": "Mazdigar Da Bannugull",
+          "qty": 1,
+          "unitPrice": 2299,
+          "lineDiscount": 0,
+          "lineTotal": 2299
+        }
+      ],
+      "subtotal": 2299,
+      "discount": 0,
+      "total": 2299,
+      "paidAmount": 2299,
+      "balanceDue": 0,
+      "paymentMethod": "Cash",
+      "returns": []
+    },
+    {
+      "id": 10,
+      "branchId": 2,
+      "branchName": "RARA Outlet BANNU CITY Railwyroad",
+      "createdAt": "2026-11-06T06:39:20.475000Z",
+      "customerId": null,
+      "customerName": "KHAN",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": 1,
+          "productName": "B4 Berry",
+          "qty": 1,
+          "unitPrice": 3000,
+          "lineDiscount": 0,
+          "lineTotal": 3000
+        }
+      ],
+      "subtotal": 3000,
+      "discount": 0,
+      "total": 3000,
+      "paidAmount": 3000,
+      "balanceDue": 0,
+      "paymentMethod": "Cash",
+      "returns": []
+    }
+  ],
+  "purchases": [],
+  "customers": [],
+  "suppliers": [],
+  "expenses": [],
+  "employees": [],
+  "transfers": [
+    {
+      "id": 1,
+      "fromBranchId": 1,
+      "toBranchId": 2,
+      "items": [
+        {
+          "productId": 5,
+          "productName": "Night Bloom",
+          "qty": 100,
+          "receivedQty": 0
+        }
+      ],
+      "status": "cancelled",
+      "createdAt": "2026-11-05T20:16:23.999000+00:00",
+      "receivedAt": null,
+      "discrepancy": 100,
+      "note": ""
+    },
+    {
+      "id": 2,
+      "fromBranchId": 1,
+      "toBranchId": 2,
+      "items": [
+        {
+          "productId": 5,
+          "productName": "Night Bloom",
+          "qty": 2,
+          "receivedQty": 2
+        }
+      ],
+      "status": "received",
+      "createdAt": "2026-11-05T20:16:54.393000+00:00",
+      "receivedAt": "2026-11-06T04:29:16.871000+00:00",
+      "discrepancy": 0,
+      "note": ""
+    },
+    {
+      "id": 3,
+      "fromBranchId": 1,
+      "toBranchId": 2,
+      "items": [
+        {
+          "productId": 5,
+          "productName": "Night Bloom",
+          "qty": 2,
+          "receivedQty": 2
+        }
+      ],
+      "status": "received",
+      "createdAt": "2026-11-05T20:17:27.051000+00:00",
+      "receivedAt": "2026-11-06T04:29:14.443000+00:00",
+      "discrepancy": 0,
+      "note": ""
+    },
+    {
+      "id": 4,
+      "fromBranchId": 1,
+      "toBranchId": 2,
+      "items": [
+        {
+          "productId": 3,
+          "productName": "ONE DAY",
+          "qty": 100,
+          "receivedQty": 100
+        }
+      ],
+      "status": "received",
+      "createdAt": "2026-11-05T20:18:01+00:00",
+      "receivedAt": "2026-11-06T04:29:09.502000+00:00",
+      "discrepancy": 0,
+      "note": ""
+    },
+    {
+      "id": 5,
+      "fromBranchId": 1,
+      "toBranchId": 3,
+      "items": [
+        {
+          "productId": 3,
+          "productName": "ONE DAY",
+          "qty": 100,
+          "receivedQty": 100
+        }
+      ],
+      "status": "received",
+      "createdAt": "2026-11-05T20:19:09.308000+00:00",
+      "receivedAt": "2026-11-06T04:28:33.084000+00:00",
+      "discrepancy": 0,
+      "note": ""
+    },
+    {
+      "id": 6,
+      "fromBranchId": 1,
+      "toBranchId": 3,
+      "items": [
+        {
+          "productId": 1,
+          "productName": "B4 Berry",
+          "qty": 100,
+          "receivedQty": 100
+        }
+      ],
+      "status": "received",
+      "createdAt": "2026-11-06T04:26:45.360000+00:00",
+      "receivedAt": "2026-11-06T04:28:30.176000+00:00",
+      "discrepancy": 0,
+      "note": ""
+    },
+    {
+      "id": 7,
+      "fromBranchId": 1,
+      "toBranchId": 3,
+      "items": [
+        {
+          "productId": 3,
+          "productName": "ONE DAY",
+          "qty": 100,
+          "receivedQty": 0
+        }
+      ],
+      "status": "cancelled",
+      "createdAt": "2026-11-06T04:29:44.631000+00:00",
+      "receivedAt": null,
+      "discrepancy": 100,
+      "note": ""
+    },
+    {
+      "id": 8,
+      "fromBranchId": 1,
+      "toBranchId": 3,
+      "items": [
+        {
+          "productId": 4,
+          "productName": "Mazdigar Da Bannugull",
+          "qty": 100,
+          "receivedQty": 100
+        }
+      ],
+      "status": "received",
+      "createdAt": "2026-11-06T04:30:13.031000+00:00",
+      "receivedAt": "2026-11-06T04:30:15.305000+00:00",
+      "discrepancy": 0,
+      "note": ""
+    },
+    {
+      "id": 9,
+      "fromBranchId": 1,
+      "toBranchId": 3,
+      "items": [
+        {
+          "productId": 5,
+          "productName": "Night Bloom",
+          "qty": 100,
+          "receivedQty": 100
+        }
+      ],
+      "status": "received",
+      "createdAt": "2026-11-06T04:30:26.491000+00:00",
+      "receivedAt": "2026-11-06T04:30:28.735000+00:00",
+      "discrepancy": 0,
+      "note": ""
+    },
+    {
+      "id": 10,
+      "fromBranchId": 1,
+      "toBranchId": 3,
+      "items": [
+        {
+          "productId": 2,
+          "productName": "GHAZAL By RARA",
+          "qty": 100,
+          "receivedQty": 100
+        }
+      ],
+      "status": "received",
+      "createdAt": "2026-11-06T04:30:49.959000+00:00",
+      "receivedAt": "2026-11-06T04:30:52.327000+00:00",
+      "discrepancy": 0,
+      "note": ""
+    }
+  ],
+  "stockMovements": [
+    {
+      "id": 1,
+      "productId": 2,
+      "productName": "GHAZAL By RARA",
+      "branchId": 2,
+      "qty": -1,
+      "date": "2026-11-05T19:28:39.758000+00:00",
+      "reason": "Sale #4",
+      "user": "",
+      "reference": "",
+      "type": "sale",
+      "qtyAfter": 96
+    },
+    {
+      "id": 2,
+      "productId": 1,
+      "productName": "B4 Berry",
+      "branchId": 1,
+      "qty": 500,
+      "date": "2026-11-05T20:15:36.837000+00:00",
+      "reason": "Stock In",
+      "user": "",
+      "reference": "",
+      "type": "stock_in",
+      "qtyAfter": 500
+    },
+    {
+      "id": 3,
+      "productId": 2,
+      "productName": "GHAZAL By RARA",
+      "branchId": 1,
+      "qty": 500,
+      "date": "2026-11-05T20:15:49.271000+00:00",
+      "reason": "Stock In",
+      "user": "",
+      "reference": "",
+      "type": "stock_in",
+      "qtyAfter": 500
+    },
+    {
+      "id": 4,
+      "productId": 4,
+      "productName": "Mazdigar Da Bannugull",
+      "branchId": 1,
+      "qty": 500,
+      "date": "2026-11-05T20:15:59.239000+00:00",
+      "reason": "Stock In",
+      "user": "",
+      "reference": "",
+      "type": "stock_in",
+      "qtyAfter": 500
+    },
+    {
+      "id": 5,
+      "productId": 5,
+      "productName": "Night Bloom",
+      "branchId": 1,
+      "qty": 500,
+      "date": "2026-11-05T20:16:08.727000+00:00",
+      "reason": "Stock In",
+      "user": "",
+      "reference": "",
+      "type": "stock_in",
+      "qtyAfter": 500
+    },
+    {
+      "id": 6,
+      "productId": 3,
+      "productName": "ONE DAY",
+      "branchId": 1,
+      "qty": 500,
+      "date": "2026-11-05T20:16:18.067000+00:00",
+      "reason": "Stock In",
+      "user": "",
+      "reference": "",
+      "type": "stock_in",
+      "qtyAfter": 500
+    },
+    {
+      "id": 7,
+      "productId": 1,
+      "productName": "B4 Berry",
+      "branchId": 1,
+      "qty": -1,
+      "date": "2026-11-05T20:22:31.017000+00:00",
+      "reason": "Sale #5",
+      "user": "",
+      "reference": "",
+      "type": "sale",
+      "qtyAfter": 499
+    },
+    {
+      "id": 8,
+      "productId": 4,
+      "productName": "Mazdigar Da Bannugull",
+      "branchId": 1,
+      "qty": -1,
+      "date": "2026-11-05T20:22:31.096000+00:00",
+      "reason": "Sale #5",
+      "user": "",
+      "reference": "",
+      "type": "sale",
+      "qtyAfter": 499
+    },
+    {
+      "id": 9,
+      "productId": 4,
+      "productName": "Mazdigar Da Bannugull",
+      "branchId": 2,
+      "qty": -1,
+      "date": "2026-11-05T21:06:18.182000+00:00",
+      "reason": "Sale #6",
+      "user": "",
+      "reference": "",
+      "type": "sale",
+      "qtyAfter": 108
+    },
+    {
+      "id": 10,
+      "productId": 4,
+      "productName": "Mazdigar Da Bannugull",
+      "branchId": 2,
+      "qty": -1,
+      "date": "2026-11-05T21:14:59.831000+00:00",
+      "reason": "Sale #7",
+      "user": "",
+      "reference": "",
+      "type": "sale",
+      "qtyAfter": 107
+    },
+    {
+      "id": 11,
+      "productId": 4,
+      "productName": "Mazdigar Da Bannugull",
+      "branchId": 2,
+      "qty": -1,
+      "date": "2026-11-05T21:15:01.240000+00:00",
+      "reason": "Sale #8",
+      "user": "",
+      "reference": "",
+      "type": "sale",
+      "qtyAfter": 106
+    },
+    {
+      "id": 12,
+      "productId": 4,
+      "productName": "Mazdigar Da Bannugull",
+      "branchId": 2,
+      "qty": -1,
+      "date": "2026-11-05T21:15:01.667000+00:00",
+      "reason": "Sale #9",
+      "user": "",
+      "reference": "",
+      "type": "sale",
+      "qtyAfter": 105
+    },
+    {
+      "id": 13,
+      "productId": 1,
+      "productName": "B4 Berry",
+      "branchId": 1,
+      "qty": -100,
+      "date": "2026-11-06T04:28:30.062000+00:00",
+      "reason": "Transfer #6 → RARA Township",
+      "user": "",
+      "reference": "",
+      "type": "transfer_out",
+      "qtyAfter": 399
+    },
+    {
+      "id": 14,
+      "productId": 1,
+      "productName": "B4 Berry",
+      "branchId": 3,
+      "qty": 100,
+      "date": "2026-11-06T04:28:30.115000+00:00",
+      "reason": "Transfer #6 ← Main Warehouse",
+      "user": "",
+      "reference": "",
+      "type": "transfer_in",
+      "qtyAfter": 100
+    },
+    {
+      "id": 15,
+      "productId": 3,
+      "productName": "ONE DAY",
+      "branchId": 1,
+      "qty": -100,
+      "date": "2026-11-06T04:28:32.970000+00:00",
+      "reason": "Transfer #5 → RARA Township",
+      "user": "",
+      "reference": "",
+      "type": "transfer_out",
+      "qtyAfter": 400
+    },
+    {
+      "id": 16,
+      "productId": 3,
+      "productName": "ONE DAY",
+      "branchId": 3,
+      "qty": 100,
+      "date": "2026-11-06T04:28:33.029000+00:00",
+      "reason": "Transfer #5 ← Main Warehouse",
+      "user": "",
+      "reference": "",
+      "type": "transfer_in",
+      "qtyAfter": 100
+    },
+    {
+      "id": 17,
+      "productId": 3,
+      "productName": "ONE DAY",
+      "branchId": 1,
+      "qty": -100,
+      "date": "2026-11-06T04:29:09.378000+00:00",
+      "reason": "Transfer #4 → RARA Outlet BANNU CITY Railwyroad",
+      "user": "",
+      "reference": "",
+      "type": "transfer_out",
+      "qtyAfter": 300
+    },
+    {
+      "id": 18,
+      "productId": 3,
+      "productName": "ONE DAY",
+      "branchId": 2,
+      "qty": 100,
+      "date": "2026-11-06T04:29:09.448000+00:00",
+      "reason": "Transfer #4 ← Main Warehouse",
+      "user": "",
+      "reference": "",
+      "type": "transfer_in",
+      "qtyAfter": 108
+    },
+    {
+      "id": 19,
+      "productId": 5,
+      "productName": "Night Bloom",
+      "branchId": 1,
+      "qty": -2,
+      "date": "2026-11-06T04:29:14.321000+00:00",
+      "reason": "Transfer #3 → RARA Outlet BANNU CITY Railwyroad",
+      "user": "",
+      "reference": "",
+      "type": "transfer_out",
+      "qtyAfter": 498
+    },
+    {
+      "id": 20,
+      "productId": 5,
+      "productName": "Night Bloom",
+      "branchId": 2,
+      "qty": 2,
+      "date": "2026-11-06T04:29:14.378000+00:00",
+      "reason": "Transfer #3 ← Main Warehouse",
+      "user": "",
+      "reference": "",
+      "type": "transfer_in",
+      "qtyAfter": 100
+    },
+    {
+      "id": 21,
+      "productId": 5,
+      "productName": "Night Bloom",
+      "branchId": 1,
+      "qty": -2,
+      "date": "2026-11-06T04:29:16.751000+00:00",
+      "reason": "Transfer #2 → RARA Outlet BANNU CITY Railwyroad",
+      "user": "",
+      "reference": "",
+      "type": "transfer_out",
+      "qtyAfter": 496
+    },
+    {
+      "id": 22,
+      "productId": 5,
+      "productName": "Night Bloom",
+      "branchId": 2,
+      "qty": 2,
+      "date": "2026-11-06T04:29:16.819000+00:00",
+      "reason": "Transfer #2 ← Main Warehouse",
+      "user": "",
+      "reference": "",
+      "type": "transfer_in",
+      "qtyAfter": 102
+    },
+    {
+      "id": 23,
+      "productId": 4,
+      "productName": "Mazdigar Da Bannugull",
+      "branchId": 1,
+      "qty": -100,
+      "date": "2026-11-06T04:30:15.173000+00:00",
+      "reason": "Transfer #8 → RARA Township",
+      "user": "",
+      "reference": "",
+      "type": "transfer_out",
+      "qtyAfter": 399
+    },
+    {
+      "id": 24,
+      "productId": 4,
+      "productName": "Mazdigar Da Bannugull",
+      "branchId": 3,
+      "qty": 100,
+      "date": "2026-11-06T04:30:15.247000+00:00",
+      "reason": "Transfer #8 ← Main Warehouse",
+      "user": "",
+      "reference": "",
+      "type": "transfer_in",
+      "qtyAfter": 100
+    },
+    {
+      "id": 25,
+      "productId": 5,
+      "productName": "Night Bloom",
+      "branchId": 1,
+      "qty": -100,
+      "date": "2026-11-06T04:30:28.587000+00:00",
+      "reason": "Transfer #9 → RARA Township",
+      "user": "",
+      "reference": "",
+      "type": "transfer_out",
+      "qtyAfter": 396
+    },
+    {
+      "id": 26,
+      "productId": 5,
+      "productName": "Night Bloom",
+      "branchId": 3,
+      "qty": 100,
+      "date": "2026-11-06T04:30:28.666000+00:00",
+      "reason": "Transfer #9 ← Main Warehouse",
+      "user": "",
+      "reference": "",
+      "type": "transfer_in",
+      "qtyAfter": 100
+    },
+    {
+      "id": 27,
+      "productId": 2,
+      "productName": "GHAZAL By RARA",
+      "branchId": 1,
+      "qty": -100,
+      "date": "2026-11-06T04:30:52.183000+00:00",
+      "reason": "Transfer #10 → RARA Township",
+      "user": "",
+      "reference": "",
+      "type": "transfer_out",
+      "qtyAfter": 400
+    },
+    {
+      "id": 28,
+      "productId": 2,
+      "productName": "GHAZAL By RARA",
+      "branchId": 3,
+      "qty": 100,
+      "date": "2026-11-06T04:30:52.260000+00:00",
+      "reason": "Transfer #10 ← Main Warehouse",
+      "user": "",
+      "reference": "",
+      "type": "transfer_in",
+      "qtyAfter": 100
+    },
+    {
+      "id": 29,
+      "productId": 6,
+      "productName": "Signature",
+      "branchId": 2,
+      "qty": 500,
+      "date": "2026-11-06T05:15:15.870000+00:00",
+      "reason": "Naya product — opening stock",
+      "user": "",
+      "reference": "",
+      "type": "opening",
+      "qtyAfter": 500
+    },
+    {
+      "id": 30,
+      "productId": 1,
+      "productName": "B4 Berry",
+      "branchId": 2,
+      "qty": -1,
+      "date": "2026-11-06T06:39:20.527000+00:00",
+      "reason": "Sale #10",
+      "user": "",
+      "reference": "",
+      "type": "sale",
+      "qtyAfter": 99
+    }
+  ],
+  "cashSessions": [
+    {
+      "id": 1,
+      "branchId": 1,
+      "branchName": "Main Warehouse",
+      "openedAt": "2026-11-05T19:15:58.021000Z",
+      "openingCash": 0,
+      "closedAt": null,
+      "closingCash": null,
+      "expectedCash": null,
+      "difference": null,
+      "status": "open"
+    }
+  ],
+  "appUsers": [],
+  "settings": {
+    "businessName": "RARA Perfumes & Fashion",
+    "phone": "",
+    "address": "",
+    "defaultBranchId": 2,
+    "allowNegativeStock": false
+  }
+}
