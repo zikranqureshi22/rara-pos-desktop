@@ -1,0 +1,254 @@
+/* RARA POS — Dashboard (Agent C)
+   Contract: const DB = require('./db.js'); window.App helpers; window.Screens registry.
+   Reads/writes DB.state only, calls DB.save() (via save()). No mock data. */
+(function () {
+  'use strict';
+  // Contract path './db.js' works when the file is required as a Node
+  // module; under index.html's <script> tags Electron resolves relative
+  // require() against the HTML file's folder (the app root), so fall
+  // back to './src/db.js' there. Either way DB is the same module.
+  let DB;
+  try { DB = require('./db.js'); } catch (e) { DB = require('./src/db.js'); }
+  const state = DB.state;
+  window.Screens = window.Screens || {};
+
+  function S() { return DB.state || state; }
+  function save() { try { if (DB && DB.save) DB.save(); else if (window.App && App.save) App.save(); } catch (e) {} }
+  function money(n) { try { if (window.App && App.money) return App.money(n); } catch (e) {} return 'Rs ' + (Number(n) || 0).toLocaleString('en-PK', { maximumFractionDigits: 2 }); }
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function fmtDate(x) { try { return new Date(x).toLocaleString('en-GB'); } catch (e) { return String(x || ''); } }
+  function fmtDay(x) { try { return new Date(x).toLocaleDateString('en-GB'); } catch (e) { return String(x || ''); } }
+  function isOwner() { try { if (window.App && App.canSeeCost) return !!App.canSeeCost(); } catch (e) {} return !!(window.App && App.user && App.user.role === 'Owner'); }
+  function saleDate(s) { return s.date || s.createdAt || s.timestamp || s.time || s.saleDate; }
+  function saleItems(s) { return s.items || s.lines || s.products || []; }
+  function itemQty(it) { return Number(it.qty != null ? it.qty : (it.quantity != null ? it.quantity : 1)) || 0; }
+  function itemPrice(it) { return Number(it.unitPrice != null ? it.unitPrice : (it.price != null ? it.price : (it.salePrice != null ? it.salePrice : 0))) || 0; }
+  function itemCost(it, prod) {
+    if (it.purchasePrice != null) return Number(it.purchasePrice) || 0;
+    if (it.costPrice != null) return Number(it.costPrice) || 0;
+    if (it.cost != null) return Number(it.cost) || 0;
+    if (prod) return Number(prod.purchasePrice != null ? prod.purchasePrice : (prod.costPrice != null ? prod.costPrice : (prod.cost || 0))) || 0;
+    return 0;
+  }
+  function saleTotal(s) {
+    if (s.total != null) return Number(s.total) || 0;
+    if (s.grandTotal != null) return Number(s.grandTotal) || 0;
+    return saleItems(s).reduce(function (a, it) { return a + itemQty(it) * itemPrice(it); }, 0);
+  }
+  function isCancelled(s) { return String(s.status || '').toLowerCase() === 'cancelled' || String(s.status || '').toLowerCase() === 'canceled'; }
+  function isReturned(s) { var st = String(s.status || s.state || '').toLowerCase(); return st === 'returned' || st === 'cancelled' || st === 'canceled' || st === 'refunded' || !!s.isReturned; }
+  function isCompleted(s) { return !isCancelled(s); }
+  function sameDay(a, b) { var d1 = new Date(a), d2 = new Date(b); return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); }
+  function prodById(id) { var st = S(); return (st.products || []).find(function (p) { return String(p.id) === String(id); }); }
+  function lowThreshold(p) {
+    var st = S();
+    if (p.lowThreshold != null) return Number(p.lowThreshold);
+    if (p.lowStockThreshold != null) return Number(p.lowStockThreshold);
+    if (p.lowStock != null) return Number(p.lowStock);
+    if (st.settings && st.settings.lowStockThreshold != null) return Number(st.settings.lowStockThreshold);
+    if (st.settings && st.settings.lowStockDefault != null) return Number(st.settings.lowStockDefault);
+    return 10;
+  }
+  function totalStock(p) {
+    // Real shape (db.js / seed.json): product.stock is the total and
+    // product.branchStocks is [{branchId, qty}]; DB.stockOf(p) returns that total.
+    if (DB.stockOf) { try { return Number(DB.stockOf(p)) || 0; } catch (e) {} }
+    if (p.branchStocks && Array.isArray(p.branchStocks)) return p.branchStocks.reduce(function (a, b) { return a + (Number(b.qty) || 0); }, 0);
+    if (p.stockByBranch && typeof p.stockByBranch === 'object') {
+      return Object.keys(p.stockByBranch).reduce(function (a, k) { return a + (Number(p.stockByBranch[k]) || 0); }, 0);
+    }
+    if (p.stock != null && typeof p.stock === 'number') return p.stock;
+    return 0;
+  }
+  // Refunds recorded on a sale: sale.returns = [{items:[{productId,qty}], refund, method, date}]
+  function returnsOf(s) { return s.returns || s.returnItems || []; }
+  function returnsRefund(s) { return returnsOf(s).reduce(function (a, r) { return a + (Number(r.refund != null ? r.refund : 0) || 0); }, 0); }
+  function returnedQty(s, productId) {
+    return returnsOf(s).reduce(function (a, r) {
+      return a + (r.items || []).reduce(function (b, it) {
+        return b + (productId == null || String(it.productId) === String(productId) ? (Number(it.qty != null ? it.qty : it.quantity || 0)) : 0);
+      }, 0);
+    }, 0);
+  }
+  function netSaleTotal(s) { return saleTotal(s) - returnsRefund(s); }
+  function branchName(id) {
+    try { if (window.App && App.branchName) return App.branchName(id); } catch (e) {}
+    var b = (S().branches || []).find(function (x) { return String(x.id) === String(id); });
+    return b ? b.name : (id == null ? '—' : String(id));
+  }
+
+  Screens.dashboard = function render(containerEl) {
+    var st = S();
+    var now = new Date();
+    var products = st.products || [];
+    var sales = st.sales || [];
+    var expenses = st.expenses || [];
+    var customers = st.customers || [];
+    var suppliers = st.suppliers || [];
+    var cashSessions = st.cashSessions || [];
+
+    var todaySales = sales.filter(function (s) { return isCompleted(s) && saleDate(s) && sameDay(saleDate(s), now); });
+    var todayTotal = todaySales.reduce(function (a, s) { return a + netSaleTotal(s); }, 0);
+    var todayOrders = todaySales.length;
+
+    var stockValue = products.reduce(function (a, p) { return a + totalStock(p) * (Number(p.purchasePrice != null ? p.purchasePrice : (p.costPrice || 0)) || 0); }, 0);
+    var lowStock = products.filter(function (p) { return totalStock(p) <= lowThreshold(p); });
+
+    // Today's profit (Owner only): net qty sold (after returns) x (price - cost snapshot)
+    var todayProfit = 0, todayCostZero = false;
+    todaySales.forEach(function (s) {
+      saleItems(s).forEach(function (it) {
+        var prod = it.productId != null ? prodById(it.productId) : null;
+        var c = itemCost(it, prod);
+        if (!c) todayCostZero = true;
+        var netQty = itemQty(it) - returnedQty(s, it.productId);
+        todayProfit += (itemPrice(it) - c) * netQty;
+      });
+    });
+
+    // Available cash: expected cash in currently open sessions
+    function expectedCash(sess) {
+      var opened = new Date(sess.openedAt || sess.opened || sess.date).getTime();
+      var opening = Number(sess.openingCash || sess.opening || 0) || 0;
+      var cashIn = 0, cashOut = 0;
+      (st.sales || []).forEach(function (s) {
+        if (isCancelled(s)) return;
+        if (sess.branchId != null && s.branchId != null && String(s.branchId) !== String(sess.branchId)) return;
+        var t = saleDate(s) ? new Date(saleDate(s)).getTime() : 0;
+        if (!t || t < opened) return;
+        var m = String(s.paymentMethod || s.method || '').toLowerCase();
+        if (m.indexOf('cash') === -1) return;
+        // Cash kept from this sale = total minus any cash refunds on it.
+        var cashRefund = returnsOf(s).reduce(function (a, r) {
+          var rm = String(r.method || s.paymentMethod || '').toLowerCase();
+          return a + (rm.indexOf('cash') !== -1 ? (Number(r.refund) || 0) : 0);
+        }, 0);
+        cashIn += Math.max(0, saleTotal(s) - cashRefund);
+      });
+      (st.customerPayments || []).forEach(function (p) {
+        if (sess.branchId != null && p.branchId != null && String(p.branchId) !== String(sess.branchId)) return;
+        var t = p.date ? new Date(p.date).getTime() : 0;
+        if (!t || t < opened) return;
+        if (String(p.method || '').toLowerCase().indexOf('cash') !== -1) cashIn += Number(p.amount) || 0;
+      });
+      (st.expenses || []).forEach(function (e) {
+        var t = e.date ? new Date(e.date).getTime() : 0;
+        if (!t || t < opened) return;
+        if (sess.branchId != null && e.branchId != null && String(e.branchId) !== String(sess.branchId)) return;
+        if (String(e.method || e.paymentMethod || '').toLowerCase().indexOf('cash') !== -1) cashOut += Number(e.amount) || 0;
+      });
+      (st.supplierPayments || []).forEach(function (p) {
+        if (sess.branchId != null && p.branchId != null && String(p.branchId) !== String(sess.branchId)) return;
+        var t = p.date ? new Date(p.date).getTime() : 0;
+        if (!t || t < opened) return;
+        if (String(p.method || '').toLowerCase().indexOf('cash') !== -1) cashOut += Number(p.amount) || 0;
+      });
+      return opening + cashIn - cashOut;
+    }
+    var openSessions = cashSessions.filter(function (s) { return String(s.status || '').toLowerCase() === 'open' || !s.closedAt; });
+    var availableCash = openSessions.reduce(function (a, s) { return a + expectedCash(s); }, 0);
+
+    var custOutstanding = customers.reduce(function (a, c) { return a + Math.max(0, Number(c.balance) || 0); }, 0);
+    var suppOutstanding = suppliers.reduce(function (a, c) { return a + Math.max(0, Number(c.balance) || 0); }, 0);
+
+    // Branch-wise sales (all time, non-cancelled, net of returns)
+    var byBranch = {};
+    sales.filter(isCompleted).forEach(function (s) {
+      var k = s.branchId != null ? String(s.branchId) : 'unknown';
+      if (!byBranch[k]) byBranch[k] = { name: s.branchName || branchName(s.branchId), orders: 0, total: 0 };
+      byBranch[k].orders += 1; byBranch[k].total += netSaleTotal(s);
+    });
+    var branchRows = Object.keys(byBranch).map(function (k) { return byBranch[k]; }).sort(function (a, b) { return b.total - a.total; });
+
+    // Best sellers (net qty after returns)
+    var best = {};
+    sales.filter(isCompleted).forEach(function (s) {
+      saleItems(s).forEach(function (it) {
+        var name = it.name || it.productName || (prodById(it.productId) || {}).name || 'Product';
+        var k = it.productId != null ? String(it.productId) : name;
+        if (!best[k]) best[k] = { name: name, qty: 0, revenue: 0 };
+        var netQ = itemQty(it) - returnedQty(s, it.productId);
+        best[k].qty += netQ; best[k].revenue += netQ * itemPrice(it);
+      });
+    });
+    var bestList = Object.keys(best).map(function (k) { return best[k]; }).sort(function (a, b) { return b.qty - a.qty; }).slice(0, 5);
+
+    // Recent sales (last 8)
+    var recent = sales.slice().sort(function (a, b) { return new Date(saleDate(b) || 0) - new Date(saleDate(a) || 0); }).slice(0, 8);
+
+    // Last 7 days sales
+    var days = [];
+    for (var i = 6; i >= 0; i--) {
+      var d = new Date(now); d.setDate(d.getDate() - i);
+      var daySales = sales.filter(function (s) { return isCompleted(s) && saleDate(s) && sameDay(saleDate(s), d); });
+      days.push({ label: fmtDay(d), orders: daySales.length, total: daySales.reduce(function (a, s) { return a + netSaleTotal(s); }, 0) });
+    }
+
+    var owner = isOwner();
+    var cards = '';
+    function card(label, value, sub) {
+      return '<div class="card"><div style="font-size:13px;opacity:.75">' + esc(label) + '</div>' +
+        '<div style="font-size:22px;font-weight:700;margin-top:4px">' + value + '</div>' +
+        (sub ? '<div style="font-size:12px;opacity:.7;margin-top:4px">' + sub + '</div>' : '') + '</div>';
+    }
+    cards += card("Today's Sales", esc(money(todayTotal)), todayOrders + ' order(s) today');
+    cards += card("Today's Orders", String(todayOrders), '');
+    cards += card('Total Products', String(products.length), '');
+    cards += card('Stock Value', esc(money(stockValue)), 'at cost price');
+    cards += card('Low Stock', String(lowStock.length), lowStock.length ? 'needs attention' : 'all OK');
+    if (owner) {
+      cards += card("Today's Profit", esc(money(todayProfit)), todayCostZero ? 'Note: cost 0 — profit overstated' : 'sales profit today');
+    }
+    cards += card('Available Cash', esc(money(availableCash)), openSessions.length ? openSessions.length + ' open session(s)' : 'no open cash session');
+    cards += card('Customer Outstanding', esc(money(custOutstanding)), customers.length + ' customer(s)');
+    cards += card('Supplier Outstanding', esc(money(suppOutstanding)), suppliers.length + ' supplier(s)');
+
+    var branchHtml = branchRows.length
+      ? '<table class="tbl"><thead><tr><th>Branch</th><th>Orders</th><th>Total Sales</th></tr></thead><tbody>' +
+        branchRows.map(function (r) { return '<tr><td>' + esc(r.name) + '</td><td>' + r.orders + '</td><td>' + esc(money(r.total)) + '</td></tr>'; }).join('') +
+        '</tbody></table>'
+      : '<p>No sales yet.</p>';
+
+    var bestHtml = bestList.length
+      ? '<table class="tbl"><thead><tr><th>Product</th><th>Qty Sold</th><th>Revenue</th></tr></thead><tbody>' +
+        bestList.map(function (r) { return '<tr><td>' + esc(r.name) + '</td><td>' + r.qty + '</td><td>' + esc(money(r.revenue)) + '</td></tr>'; }).join('') +
+        '</tbody></table>'
+      : '<p>No sales yet.</p>';
+
+    var recentHtml = recent.length
+      ? '<table class="tbl"><thead><tr><th>Date</th><th>Branch</th><th>Items</th><th>Total</th><th>Status</th></tr></thead><tbody>' +
+        recent.map(function (s) {
+          var items = saleItems(s).map(function (it) { return (it.name || it.productName || 'Item') + ' × ' + itemQty(it); }).join(', ');
+          var stt = String(s.status || 'completed').toLowerCase();
+          var badge = stt === 'cancelled' ? '<span class="badge badge-red">Cancelled</span>'
+            : stt === 'returned' ? '<span class="badge badge-red">Returned</span>'
+            : stt === 'partial-return' ? '<span class="badge badge-amber">Partial Return</span>'
+            : stt === 'partial' ? '<span class="badge badge-teal">Partial / Credit</span>'
+            : '<span class="badge badge-green">Completed</span>';
+          return '<tr><td>' + esc(fmtDate(saleDate(s))) + '</td><td>' + esc(s.branchName || branchName(s.branchId)) + '</td><td>' + esc(items) + '</td><td>' + esc(money(netSaleTotal(s))) + '</td><td>' + badge + '</td></tr>';
+        }).join('') + '</tbody></table>'
+      : '<p>No sales yet.</p>';
+
+    var lowHtml = lowStock.length
+      ? '<table class="tbl"><thead><tr><th>Product</th><th>Stock</th><th>Threshold</th></tr></thead><tbody>' +
+        lowStock.map(function (p) {
+          var q = totalStock(p);
+          return '<tr><td>' + esc(p.name) + '</td><td><span class="badge ' + (q <= 0 ? 'badge-red' : 'badge-amber') + '">' + q + '</span></td><td>' + lowThreshold(p) + '</td></tr>';
+        }).join('') + '</tbody></table>'
+      : '<p>No low-stock products.</p>';
+
+    var daysHtml = '<table class="tbl"><thead><tr><th>Date</th><th>Orders</th><th>Sales</th></tr></thead><tbody>' +
+      days.map(function (d) { return '<tr><td>' + esc(d.label) + '</td><td>' + d.orders + '</td><td>' + esc(money(d.total)) + '</td></tr>'; }).join('') +
+      '</tbody></table>';
+
+    containerEl.innerHTML =
+      '<h2>Dashboard</h2>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:12px 0">' + cards + '</div>' +
+      '<div class="card"><h3>Branch-wise Sales</h3>' + branchHtml + '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">' +
+      '<div class="card"><h3>Best Sellers</h3>' + bestHtml + '</div>' +
+      '<div class="card"><h3>Low Stock</h3>' + lowHtml + '</div></div>' +
+      '<div class="card" style="margin-top:12px"><h3>Recent Sales (last 8)</h3>' + recentHtml + '</div>' +
+      '<div class="card" style="margin-top:12px"><h3>Last 7 Days Sales</h3>' + daysHtml + '</div>';
+  };
+})();
