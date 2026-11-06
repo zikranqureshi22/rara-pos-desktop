@@ -28,6 +28,42 @@
     try { if (window.App && App.confirmDialog) return App.confirmDialog(title, text); } catch (e) {}
     return Promise.resolve(window.confirm(text || title));
   }
+  // Backup section (item 9): last auto-backup time, how many are kept,
+  // and Backup Now / Restore Latest buttons. Backups are verified on
+  // write (read back + parse) and the last 7 are kept.
+  function backupCardHtml() {
+    var info = { lastBackup: null, count: 0 };
+    try { if (DB.backupInfo) info = DB.backupInfo(); } catch (e) { info = { lastBackup: null, count: 0 }; }
+    var last = info.lastBackup ? new Date(info.lastBackup).toLocaleString('en-GB') : 'Abhi tak koi backup nahi bana';
+    return '<div class="card" style="margin-top:12px"><h3>Backup &amp; Restore</h3>' +
+      '<p>Data is stored on this laptop in the app data folder and survives closing the app. Auto-backup har roz login par aur har dafa app band karne par banta hai (aakhri 7 rakhe jate hain).</p>' +
+      '<p>Last auto-backup: <b>' + esc(last) + '</b> &nbsp;|&nbsp; Saved backups: <b>' + (info.count || 0) + '</b></p>' +
+      '<button class="btn btn-primary" id="st-backup-now">Backup Now</button> ' +
+      '<button class="btn" id="st-restore">Restore Latest Backup</button> ' +
+      '<button class="btn" id="st-export">Export Data (JSON)</button> ' +
+      '<button class="btn" id="st-import-btn">Import Data (JSON)</button>' +
+      '<input type="file" id="st-import-file" accept=".json,application/json" style="display:none">' +
+      '<p style="font-size:12px;opacity:.75">Import replaces all current data (products, sales, customers, suppliers, expenses, employees, logins and settings) with the file you choose. Export a backup first. Restore Latest Backup sab se naye verified backup se data wapas lata hai.</p></div>';
+  }
+  // Data check (item 3): report any duplicates that already exist.
+  // Nothing is deleted here — the Owner decides what to fix.
+  function dataCheckHtml() {
+    var dups = { products: [], customers: [], suppliers: [], appUsers: [], branches: [] };
+    try { if (DB.findDuplicates) dups = DB.findDuplicates(); } catch (e) { /* ignore */ }
+    var total = dups.products.length + dups.customers.length + dups.suppliers.length + dups.appUsers.length + dups.branches.length;
+    if (total === 0) {
+      return '<div class="card" style="margin-top:12px"><h3>Data Check</h3><p>Koi duplicate record nahi mila — SKU, barcode, customer phone, supplier aur username sab unique hain.</p></div>';
+    }
+    var rows = [];
+    ['products', 'customers', 'suppliers', 'appUsers', 'branches'].forEach(function (coll) {
+      dups[coll].forEach(function (d) {
+        rows.push('<tr><td>' + esc(coll) + '</td><td>' + esc(d.field) + ': ' + esc(d.value) + '</td><td>' + esc(d.names.join(', ')) + '</td></tr>');
+      });
+    });
+    return '<div class="card" style="margin-top:12px"><h3>Data Check — Duplicates Mile (' + total + ')</h3>' +
+      '<p>Ye records duplicate hain. Kuch delete nahi kiya gaya — inhein Products / Customers / Suppliers / Logins screen se theek karein.</p>' +
+      '<table class="tbl"><thead><tr><th>Section</th><th>Duplicate</th><th>Records</th></tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
+  }
 
   Screens.settings = function render(containerEl) {
     if (!isOwner()) {
@@ -48,14 +84,11 @@
       '<div class="card" style="margin-top:12px"><h3>Defaults</h3>' +
       '<div class="form-row"><label>Low-Stock Threshold (default) <input type="number" id="st-low" min="0" step="1" value="' + esc(low) + '"></label>' +
       '<label>Default Branch <select id="st-branch">' + (st.branches || []).map(function (b) { return '<option value="' + esc(b.id) + '"' + (String(b.id) === String(settings.defaultBranchId) ? ' selected' : '') + '>' + esc(b.name) + '</option>'; }).join('') + '</select></label>' +
+      '<label>Session Timeout (minutes) <input type="number" id="st-timeout" min="5" max="120" step="1" value="' + esc(settings.sessionTimeoutMinutes != null ? settings.sessionTimeoutMinutes : 15) + '"></label>' +
       '<label><input type="checkbox" id="st-neg" ' + (settings.allowNegativeStock ? 'checked' : '') + '> Allow negative stock</label></div>' +
+      '<p style="font-size:12px;opacity:.75">Session Timeout: itne minute tak koi activity na ho to app lock ho jayega aur PIN dobara mangega (data aur branch waisi ki waisi rehti hai). 1 minute pehle warning notice aata hai.</p>' +
       '<button class="btn btn-primary" id="st-save-defaults">Save Defaults</button></div>' +
-      '<div class="card" style="margin-top:12px"><h3>Backup &amp; Restore</h3>' +
-      '<p>Data is stored on this laptop in the app data folder and survives closing the app.</p>' +
-      '<button class="btn btn-primary" id="st-export">Export Data (JSON)</button> ' +
-      '<button class="btn" id="st-import-btn">Import Data (JSON)</button>' +
-      '<input type="file" id="st-import-file" accept=".json,application/json" style="display:none">' +
-      '<p style="font-size:12px;opacity:.75">Import replaces all current data (products, sales, customers, suppliers, expenses, employees, logins and settings) with the file you choose. Export a backup first.</p></div>';
+      backupCardHtml() + dataCheckHtml();
 
     containerEl.querySelector('#st-save-business').addEventListener('click', function () {
       var name = val('st-name', containerEl).trim();
@@ -69,12 +102,34 @@
     containerEl.querySelector('#st-save-defaults').addEventListener('click', function () {
       var lowVal = parseInt(val('st-low', containerEl), 10);
       if (isNaN(lowVal) || lowVal < 0) { notify('Low-stock threshold must be 0 or more.', 'error'); return; }
+      var timeoutVal = parseInt(val('st-timeout', containerEl), 10);
+      if (isNaN(timeoutVal) || timeoutVal < 5 || timeoutVal > 120) { notify('Session timeout 5 se 120 minute ke darmiyan hona chahiye.', 'error'); return; }
       st.settings = st.settings || {};
       st.settings.lowStockThreshold = lowVal;
       st.settings.lowStockDefault = lowVal;
       st.settings.defaultBranchId = branchIdOf(val('st-branch', containerEl)) || settings.defaultBranchId;
       st.settings.allowNegativeStock = !!containerEl.querySelector('#st-neg').checked;
+      st.settings.sessionTimeoutMinutes = timeoutVal;
       save(); notify('Defaults saved.', 'success');
+      // The new timeout applies from the next login / activity reset.
+      try { if (window.App && App.resetIdleTimer) App.resetIdleTimer(); } catch (e) { /* ignore */ }
+    });
+    containerEl.querySelector('#st-backup-now').addEventListener('click', function () {
+      var res = { ok: false };
+      try { res = DB.backup ? DB.backup() : { ok: false }; } catch (e) { res = { ok: false, error: e && e.message ? e.message : 'Backup nahi ban saka' }; }
+      if (res.ok) { notify('Backup ban gaya aur verify ho gaya — ' + (res.name || ''), 'success'); }
+      else { notify('Masla: Backup nahi ban saka — ' + (res.error || 'dobara koshish karein'), 'error'); return; }
+      Screens.settings(containerEl);
+    });
+    containerEl.querySelector('#st-restore').addEventListener('click', function () {
+      confirmDlg('Restore Latest Backup?', 'Sab se naya backup restore hoga. Current data ki pehle aik safety backup ban jayegi, phir data backup se replace ho jayega.').then(function (ok) {
+        if (!ok) return;
+        var res = { ok: false };
+        try { res = DB.restoreLatestBackup ? DB.restoreLatestBackup() : { ok: false, message: 'Restore available nahi hai' }; } catch (e) { res = { ok: false, message: e && e.message ? e.message : 'Restore nahi ho saka' }; }
+        if (res.ok) { notify('Backup restore ho gaya — ' + (res.at || ''), 'success'); }
+        else { notify('Masla: ' + (res.message || 'Restore nahi ho saka'), 'error'); return; }
+        Screens.settings(containerEl);
+      });
     });
     containerEl.querySelector('#st-export').addEventListener('click', function () {
       var blob = new Blob([JSON.stringify(S(), null, 2)], { type: 'application/json' });
@@ -105,6 +160,8 @@
           Object.keys(DB.state).forEach(function (k) { delete DB.state[k]; });
           Object.keys(parsed).forEach(function (k) { DB.state[k] = parsed[k]; });
           if (!DB.state.settings) DB.state.settings = {};
+          if (DB.state.settings.sessionTimeoutMinutes == null) DB.state.settings.sessionTimeoutMinutes = 15;
+          try { if (DB.buildIndexes) DB.buildIndexes(); } catch (e) { /* ignore */ }
           save();
           notify('Backup imported. All data was replaced with the file.', 'success');
           Screens.settings(containerEl);
