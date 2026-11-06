@@ -91,7 +91,14 @@
     var todayTotal = todaySales.reduce(function (a, s) { return a + netSaleTotal(s); }, 0);
     var todayOrders = todaySales.length;
 
-    var stockValue = products.reduce(function (a, p) { return a + totalStock(p) * (Number(p.purchasePrice != null ? p.purchasePrice : (p.costPrice || 0)) || 0); }, 0);
+    var owner = isOwner();
+    // Stock value at COST is Owner-only (item 7): other roles see the
+    // value at sale price, so purchase costs never leak through the
+    // dashboard.
+    var stockValue = owner
+      ? products.reduce(function (a, p) { return a + totalStock(p) * (Number(p.purchasePrice != null ? p.purchasePrice : (p.costPrice || 0)) || 0); }, 0)
+      : products.reduce(function (a, p) { return a + totalStock(p) * (Number(p.price) || 0); }, 0);
+    var stockValueSub = owner ? 'at cost price' : 'at sale price';
     var lowStock = products.filter(function (p) { return totalStock(p) <= lowThreshold(p); });
 
     // Today's profit (Owner only): net qty sold (after returns) x (price - cost snapshot)
@@ -184,7 +191,6 @@
       days.push({ label: fmtDay(d), orders: daySales.length, total: daySales.reduce(function (a, s) { return a + netSaleTotal(s); }, 0) });
     }
 
-    var owner = isOwner();
     var cards = '';
     function card(label, value, sub) {
       return '<div class="card"><div style="font-size:13px;opacity:.75">' + esc(label) + '</div>' +
@@ -194,7 +200,7 @@
     cards += card("Today's Sales", esc(money(todayTotal)), todayOrders + ' order(s) today');
     cards += card("Today's Orders", String(todayOrders), '');
     cards += card('Total Products', String(products.length), '');
-    cards += card('Stock Value', esc(money(stockValue)), 'at cost price');
+    cards += card('Stock Value', esc(money(stockValue)), stockValueSub);
     cards += card('Low Stock', String(lowStock.length), lowStock.length ? 'needs attention' : 'all OK');
     if (owner) {
       cards += card("Today's Profit", esc(money(todayProfit)), todayCostZero ? 'Note: cost 0 — profit overstated' : 'sales profit today');
