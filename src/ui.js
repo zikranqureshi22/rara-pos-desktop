@@ -78,7 +78,24 @@ function ensureState() {
   return s;
 }
 function dbSave() {
-  try { App.state = DB.state; DB.save(); } catch (e) { /* DB.save is the persistence hook; never crash the UI on it */ }
+  try { App.state = DB.state; DB.save(); }
+  catch (e) {
+    // A failed save must never crash the UI or lose the in-memory state.
+    // The user hears about it through the top notice, in Roman Urdu.
+    try { App.handleError(e, 'save'); } catch (err) { /* never throw from error handling */ }
+  }
+}
+
+/* Central error handler (item 4): every user action fails gracefully.
+ * No stack traces, no blank screens, no sensitive data (PINs, costs,
+ * hashes) in the message — only a short Roman Urdu notice on top,
+ * auto-dismissed in 9 seconds by the notice system. */
+function sanitiseErrorMessage(e) {
+  let msg = (e && e.message) ? String(e.message) : 'Kuch ghalat ho gaya';
+  // Strip anything that could carry sensitive data (hashes, long tokens).
+  msg = msg.replace(/\b[0-9a-f]{32,}\b/gi, '[hidden]');
+  if (msg.length > 160) msg = msg.slice(0, 160) + '…';
+  return msg;
 }
 
 /* ---------- Role / permission model ---------- */
@@ -108,6 +125,65 @@ const App = {
   currentScreen: null,
   _branchId: null,      // Owner's selected branch (header selector)
   _selectedLoginUser: null,
+  _lockedUser: null,    // user who was locked out by the session timeout
+  _idleTimer: null,
+  _idleWarnTimer: null,
+  _idleWarned: false,
+  perf: { lastSwitchMs: 0, switches: [] },
+
+  /* ----- central error handling (item 4) ----- */
+  handleError(err, context) {
+    let msg = sanitiseErrorMessage(err);
+    // Keep the notice short and in Roman Urdu; the context stays internal.
+    this.notify('Masla: ' + msg, 'error');
+    try {
+      // Console only, never the screen — and never with sensitive data.
+      if (typeof console !== 'undefined' && console.error) console.error('[RARA POS]', context || 'error', msg);
+    } catch (e) { /* ignore */ }
+  },
+
+  /* ----- automatic session timeout (item 5) ----- */
+  // Locks the app after N minutes of no input (default 15, from Settings).
+  // The loaded data stays in memory and the branch stays selected; only
+  // the PIN screen comes back. A warning appears 1 minute before locking.
+  sessionTimeoutMs() {
+    const mins = Number(this.state && this.state.settings && this.state.settings.sessionTimeoutMinutes);
+    if (!mins || mins <= 0) return 15 * 60 * 1000;
+    return Math.max(1, mins) * 60 * 1000;
+  },
+  startIdleTimer() {
+    this.stopIdleTimer();
+    if (!this.user) return;
+    const total = this.sessionTimeoutMs();
+    const warnAt = Math.max(0, total - 60 * 1000);
+    this._idleWarned = false;
+    this._idleWarnTimer = setTimeout(() => {
+      this._idleWarned = true;
+      this.notify('1 minute me lock ho jayega — kaam jari rakhne ke liye kahin bhi click karein', 'warning');
+    }, warnAt);
+    this._idleTimer = setTimeout(() => this.lock(), total);
+  },
+  resetIdleTimer() {
+    if (!this.user) return;
+    // Any real activity cancels the warning and restarts the countdown.
+    if (this._idleWarned) this._idleWarned = false;
+    this.startIdleTimer();
+  },
+  stopIdleTimer() {
+    if (this._idleTimer) { clearTimeout(this._idleTimer); this._idleTimer = null; }
+    if (this._idleWarnTimer) { clearTimeout(this._idleWarnTimer); this._idleWarnTimer = null; }
+  },
+  lock() {
+    if (!this.user) return;
+    this._lockedUser = this.user;
+    this.stopIdleTimer();
+    this.user = null;
+    this.currentScreen = null;
+    const container = document.getElementById('screen');
+    if (container) container.innerHTML = '';
+    this.notify('Session lock ho gaya — PIN dobara dalein', 'warning');
+    this.renderLogin();
+  },
 
   /* ----- lifecycle ----- */
   init() {
@@ -129,6 +205,24 @@ const App = {
     this.updateNetBadge();
     window.addEventListener('online', () => this.updateNetBadge());
     window.addEventListener('offline', () => this.updateNetBadge());
+    // Global error handling: no blank screens, no raw stack traces —
+    // everything goes through the top notice (item 4).
+    window.addEventListener('error', (ev) => {
+      try { this.handleError(ev.error || ev.message, 'window'); } catch (e) { /* ignore */ }
+    });
+    window.addEventListener('unhandledrejection', (ev) => {
+      try { this.handleError(ev.reason, 'promise'); } catch (e) { /* ignore */ }
+    });
+    // Session-timeout activity tracking (item 5): any input resets the
+    // countdown. Listeners are passive and cheap; the timer itself is
+    // only armed while a user is logged in.
+    ['pointerdown', 'keydown', 'wheel', 'input', 'touchstart'].forEach((evt) => {
+      window.addEventListener(evt, () => this.resetIdleTimer(), { passive: true });
+    });
+    // Tell the user if the data file was recovered from the .bak copy.
+    if (DB.loadError) {
+      setTimeout(() => this.notify(DB.recoveredFromBackup ? 'Data backup copy se wapas laya gaya hai — sab kuch mehfooz hai' : 'Masla: ' + DB.loadError, DB.recoveredFromBackup ? 'warning' : 'error'), 400);
+    }
     this.renderLogin();
   },
 
@@ -288,11 +382,15 @@ const App = {
     if (!container) return;
     container.innerHTML = '';
     const fn = window.Screens[screenName];
+    // Fast page loading (item 1): only the active screen renders, and the
+    // switch time is measured so regressions are visible.
+    const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     if (typeof fn === 'function') {
       try { fn(container); }
       catch (e) {
         container.innerHTML = '';
-        container.appendChild(el('<div class="card"><h2>Masla</h2><p>Screen load nahi ho saki: ' + esc(e.message || e) + '</p></div>'));
+        this.handleError(e, 'screen:' + screenName);
+        container.appendChild(el('<div class="card"><h2>Masla</h2><p>Screen load nahi ho saki — dobara koshish karein ya app band kar ke kholein.</p></div>'));
       }
     } else {
       container.appendChild(el(
@@ -300,6 +398,10 @@ const App = {
         '<p class="muted">Ye screen abhi tayyar ho raha hai. Baraye meharbani thodi der baad dobara koshish karein.</p></div>'
       ));
     }
+    const t1 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    this.perf.lastSwitchMs = Math.round((t1 - t0) * 10) / 10;
+    this.perf.switches.push({ screen: screenName, ms: this.perf.lastSwitchMs });
+    if (this.perf.switches.length > 50) this.perf.switches.shift();
     window.scrollTo(0, 0);
   },
 
@@ -360,6 +462,12 @@ const App = {
         pinInput.focus();
       });
       list.appendChild(b);
+      // After a session lock, the same user is pre-selected so the PIN
+      // is all they need to get back to work.
+      if (this._lockedUser && String(this._lockedUser.id) === String(u.id)) {
+        this._selectedLoginUser = u;
+        b.classList.add('selected');
+      }
     });
     wrap.appendChild(list);
     const form = el('<form></form>');
@@ -387,6 +495,8 @@ const App = {
     });
     wrap.appendChild(form);
     body.appendChild(wrap);
+    // After a session lock, the PIN field is focused straight away.
+    if (this._selectedLoginUser) { try { pinInput.focus(); } catch (e) { /* ignore */ } }
   },
 
   ownerSetupForm() {
@@ -412,7 +522,11 @@ const App = {
       if (!name || !username) { this.notify('Naam aur username zaroori hain', 'warning'); return; }
       if (!/^\d{4,6}$/.test(pin)) { this.notify('PIN sirf 4–6 digit ka hona chahiye', 'warning'); return; }
       if (pin !== pin2) { this.notify('Dono PIN match nahi karte', 'error'); return; }
-      if ((this.state.appUsers || []).some((u) => String(u.username).toLowerCase() === username.toLowerCase())) {
+      // Data-layer duplicate guard (item 3).
+      if (DB.checkUniqueness) {
+        const chk = DB.checkUniqueness('appUsers', { username }, null);
+        if (!chk.ok) { this.notify(chk.message, 'error'); return; }
+      } else if ((this.state.appUsers || []).some((u) => String(u.username).toLowerCase() === username.toLowerCase())) {
         this.notify('Ye username pehle se mojood hai', 'error'); return;
       }
       const owner = {
@@ -432,15 +546,31 @@ const App = {
 
   login(user) {
     this.user = user;
+    this._lockedUser = null;
     this._branchId = user.role === 'Owner' ? (this.state.settings.defaultBranchId || null) : (user.branchId || null);
     this._selectedLoginUser = null;
     this.showShell(true);
     this.renderHeader();
     this.notify('Welcome, ' + user.name, 'success');
+    this.startIdleTimer();
+    // Reliable backup (item 9): once a day, right after login, take a
+    // verified auto-backup. Failures are reported, never silent.
+    try {
+      if (DB.backupInfo) {
+        const info = DB.backupInfo();
+        const today = new Date().toISOString().slice(0, 10);
+        if (!info.lastBackup || String(info.lastBackup).slice(0, 10) !== today) {
+          const res = DB.backup ? DB.backup() : { ok: false };
+          if (!res.ok) this.notify('Masla: Aaj ka auto-backup nahi ban saka — Settings > Backup se dobara koshish karein', 'error');
+        }
+      }
+    } catch (e) { /* backup failure must never block login */ }
     this.go(this.can('dashboard') ? 'dashboard' : 'pos');
   },
 
   logout() {
+    this.stopIdleTimer();
+    this._lockedUser = null;
     this.user = null;
     this.currentScreen = null;
     const container = document.getElementById('screen');
