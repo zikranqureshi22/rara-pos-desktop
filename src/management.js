@@ -71,7 +71,7 @@
     var max = 0; arr.forEach(function (x) { var n = Number(x.id); if (!isNaN(n) && n > max) max = n; });
     return max + 1 || Date.now();
   }
-  function prodById(id) { return (S().products || []).find(function (p) { return String(p.id) === String(id); }); }
+  function prodById(id) { try { if (DB.productById) return DB.productById(id); } catch (e) {} return (S().products || []).find(function (p) { return String(p.id) === String(id); }); }
   function prodCost(p) { return Number(p.purchasePrice != null ? p.purchasePrice : (p.costPrice != null ? p.costPrice : (p.cost || 0))) || 0; }
   function totalStock(p) {
     // Real shape (db.js / seed.json): product.stock is the total and
@@ -334,6 +334,7 @@
       var name = val('cu-name', containerEl).trim();
       if (!name) { notify('Customer name is required.', 'error'); return; }
       var phone = val('cu-phone', containerEl).trim(), address = val('cu-address', containerEl).trim();
+      if (DB.checkUniqueness) { var chkC = DB.checkUniqueness('customers', { phone: phone }, editingId === 'new' ? null : editingId); if (!chkC.ok) { notify(chkC.message, 'error'); return; } }
       if (editingId === 'new') {
         st.customers = st.customers || [];
         st.customers.push({ id: nextId('customers'), name: name, phone: phone, address: address, balance: 0 });
@@ -414,6 +415,7 @@
       var name = val('su-name', containerEl).trim();
       if (!name) { notify('Supplier name is required.', 'error'); return; }
       var phone = val('su-phone', containerEl).trim(), address = val('su-address', containerEl).trim();
+      if (DB.checkUniqueness) { var chkS = DB.checkUniqueness('suppliers', { name: name }, editingId === 'new' ? null : editingId); if (!chkS.ok) { notify(chkS.message, 'error'); return; } }
       if (editingId === 'new') {
         st.suppliers = st.suppliers || [];
         st.suppliers.push({ id: nextId('suppliers'), name: name, phone: phone, address: address, balance: 0 });
@@ -688,8 +690,8 @@
     if (saveBtn) saveBtn.addEventListener('click', function () {
       var name = val('br-name', containerEl).trim();
       if (!name) { notify('Branch name is required.', 'error'); return; }
-      var dup = branches.some(function (b) { return String(b.name).toLowerCase() === name.toLowerCase() && String(b.id) !== String(editingId); });
-      if (dup) { notify('A branch with this name already exists.', 'error'); return; }
+      if (DB.checkUniqueness) { var chkB = DB.checkUniqueness('branches', { name: name }, editingId === 'new' ? null : editingId); if (!chkB.ok) { notify(chkB.message, 'error'); return; } }
+      else { var dup = branches.some(function (b) { return String(b.name).toLowerCase() === name.toLowerCase() && String(b.id) !== String(editingId); }); if (dup) { notify('A branch with this name already exists.', 'error'); return; } }
       var data = { name: name, type: val('br-type', containerEl), ownerName: val('br-owner', containerEl).trim(), owner: val('br-owner', containerEl).trim(), phone: val('br-phone', containerEl).trim(), address: val('br-address', containerEl).trim() };
       if (editingId === 'new') {
         data.id = nextId('branches'); st.branches = st.branches || []; st.branches.push(data);
@@ -780,8 +782,8 @@
       var branchId = branchIdOf(val('lg-branch', containerEl));
       if (!name) { notify('Name is required.', 'error'); return; }
       if (!username) { notify('Username is required.', 'error'); return; }
-      var dup = users.some(function (u) { return String(u.username).toLowerCase() === username.toLowerCase() && String(u.id) !== String(editingId); });
-      if (dup) { notify('This username is already taken. Please choose a different username.', 'error'); return; }
+      if (DB.checkUniqueness) { var chkU = DB.checkUniqueness('appUsers', { username: username }, editingId === 'new' ? null : editingId); if (!chkU.ok) { notify(chkU.message, 'error'); return; } }
+      else { var dup = users.some(function (u) { return String(u.username).toLowerCase() === username.toLowerCase() && String(u.id) !== String(editingId); }); if (dup) { notify('This username is already taken. Please choose a different username.', 'error'); return; } }
       if (userRole !== 'Owner' && !branchId) { notify('Please select a branch for a non-Owner login.', 'error'); return; }
       if (editingId === 'new') {
         var pin = val('lg-pin', containerEl).trim();
