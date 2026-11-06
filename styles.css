@@ -1,5 +1,10 @@
 /* RARA POS — renderer styles. Fully offline: system fonts only, no CDN. */
 * { box-sizing: border-box; }
+/* A `hidden` element must stay hidden even when its class sets display:flex/grid.
+   (Without this, the confirm dialog overlay covered the whole screen from
+   launch with dead buttons and blocked every click.) */
+[hidden] { display: none !important; }
+
 :root {
   --accent: #00c853;
   --primary: #FFC107;
