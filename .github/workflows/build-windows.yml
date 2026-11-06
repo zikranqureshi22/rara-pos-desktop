@@ -1,7 +1,13 @@
-# Build the RARA POS Windows installer
+# Build the RARA POS Windows installer + publish a GitHub Release.
 # NOTE: the installer cannot be built on Linux. electron-builder needs
 # Windows (or Wine) to produce an NSIS .exe, so this workflow MUST run
 # on windows-latest. Do not move it to ubuntu-latest.
+#
+# The build PUBLISHES a real GitHub Release (installer .exe + latest.yml)
+# so installed apps can update themselves in-app (electron-updater).
+# GH_TOKEN is the built-in Actions token (contents: write) — no personal
+# token is needed here. The artifact upload is kept as well, so the .exe
+# can also be downloaded directly from the run page.
 
 name: Build Windows installer
 
@@ -10,6 +16,9 @@ on:
   push:
     tags:
       - "v*"
+
+permissions:
+  contents: write
 
 jobs:
   build-windows:
@@ -27,8 +36,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Windows installer (NSIS)
-        run: npx electron-builder --win nsis --publish=never
+      - name: Build Windows installer (NSIS) and publish Release
+        run: npx electron-builder --win nsis --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
