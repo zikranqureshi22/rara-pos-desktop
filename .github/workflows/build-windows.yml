@@ -28,7 +28,7 @@ jobs:
         run: npm ci
 
       - name: Build Windows installer (NSIS)
-        run: npx electron-builder --win nsis
+        run: npx electron-builder --win nsis --publish=never
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
