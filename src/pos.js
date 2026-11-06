@@ -22,6 +22,16 @@ function fmtDate(iso) {
     return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   } catch (e) { return String(iso || ''); }
 }
+// Fast page loading (item 1): heavy filtering never runs on every
+// keystroke — the search waits 150 ms after the last keypress.
+function debounce(fn, ms) {
+  let t = null;
+  return function () {
+    const args = arguments, ctx = this;
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(ctx, args), ms || 150);
+  };
+}
 function productImage(p) { return p.imageData || p.image || ''; }
 function thumbHtml(p) {
   const img = productImage(p);
@@ -47,10 +57,8 @@ function itemLineTotal(it) {
   return itemQty(it) * itemPrice(it) - itemDiscount(it);
 }
 function nextBillNo() {
-  const sales = S().sales || [];
-  let max = 0;
-  sales.forEach((s) => { const n = Number(s.id); if (!isNaN(n) && n > max) max = n; });
-  return 'R-' + String(max + 1).padStart(4, '0');
+  const next = DB.nextId ? DB.nextId('sales') : ((S().sales || []).length + 1);
+  return 'R-' + String(next).padStart(4, '0');
 }
 
 /* ---------------- Receipt ---------------- */
@@ -132,7 +140,7 @@ function processReturn(sale, returnItems, refundMethod) {
     const maxQty = itemQty(line) - already;
     const q = Math.min(qty, maxQty);
     if (q <= 0) return;
-    const product = (st.products || []).find((p) => String(p.id) === String(ri.productId));
+    const product = DB.productById ? DB.productById(ri.productId) : (st.products || []).find((p) => String(p.id) === String(ri.productId));
     if (product) window.App.adjustStock(product, branchId, q, 'Return', saleBillNo(sale));
     const lineTotal = itemPrice(line) * q - itemDiscount(line) * (q / (itemQty(line) || 1));
     refund += lineTotal;
@@ -158,7 +166,7 @@ let selectedCustomerId = '';
 let newCustomerName = '';
 let newCustomerPhone = '';
 
-function cartProduct(line) { return (S().products || []).find((p) => String(p.id) === String(line.productId)); }
+function cartProduct(line) { return DB.productById ? DB.productById(line.productId) : (S().products || []).find((p) => String(p.id) === String(line.productId)); }
 function lineTotal(line) {
   const p = cartProduct(line);
   const price = p ? Number(p.price) || 0 : 0;
@@ -224,23 +232,25 @@ function renderPos(container) {
         '<div class="p-name">' + esc(p.name || '') + '</div>' +
         '<div class="p-price">' + money(p.price) + '</div>' +
         '<div class="p-stock">' + (stock <= 0 ? 'Stock khatam' : 'Stock: ' + stock) + '</div></div>');
-      const add = () => { if (addToCart(p, 1)) renderPos(container); };
+      const add = () => { if (addToCart(p, 1)) refreshPos(); };
       card.addEventListener('click', add);
       card.addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
       grid.appendChild(card);
     });
   }
   drawGrid('');
-  searchInput.addEventListener('input', () => drawGrid(searchInput.value));
+  searchInput.addEventListener('input', debounce(() => drawGrid(searchInput.value), 150));
   barcodeInput.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     const code = barcodeInput.value.trim();
     barcodeInput.value = '';
     if (!code) return;
-    const p = (st.products || []).find((x) => String(x.barcode || '') === code || String(x.sku || '') === code);
+    // O(1) barcode/SKU lookup from the DB index (item 2).
+    const p = DB.productByBarcodeOrSku ? DB.productByBarcodeOrSku(code)
+      : (st.products || []).find((x) => String(x.barcode || '') === code || String(x.sku || '') === code);
     if (!p) { notify('Barcode nahi mila: ' + code, 'error'); return; }
-    if (addToCart(p, 1)) { notify(p.name + ' add ho gaya', 'success'); renderPos(container); }
-    else renderPos(container);
+    if (addToCart(p, 1)) { notify(p.name + ' add ho gaya', 'success'); refreshPos(); }
+    else refreshPos();
   });
 
   /* ---- Cart panel ---- */
@@ -266,18 +276,18 @@ function renderPos(container) {
         '<label style="margin-top:6px">Item Discount (Rs)</label>' +
         '<input class="input" type="number" min="0" value="' + (Number(line.discount) || 0) + '" data-act="discount" style="max-width:140px"></div>' +
         '<div class="cl-price">' + money(lineTotal(line)) + '</div>'));
-      row.querySelector('[data-act="minus"]').addEventListener('click', () => { line.qty = Math.max(1, line.qty - 1); renderPos(container); });
-      row.querySelector('[data-act="plus"]').addEventListener('click', () => { if (addToCart(p, 1)) renderPos(container); });
-      row.querySelector('[data-act="remove"]').addEventListener('click', () => { cart.splice(idx, 1); renderPos(container); });
+      row.querySelector('[data-act="minus"]').addEventListener('click', () => { line.qty = Math.max(1, line.qty - 1); refreshPos(); });
+      row.querySelector('[data-act="plus"]').addEventListener('click', () => { if (addToCart(p, 1)) refreshPos(); });
+      row.querySelector('[data-act="remove"]').addEventListener('click', () => { cart.splice(idx, 1); refreshPos(); });
       row.querySelector('[data-act="qty"]').addEventListener('change', (e) => {
         const v = Math.max(1, parseInt(e.target.value, 10) || 1);
         const allowNeg = !!(S().settings && S().settings.allowNegativeStock);
-        if (!allowNeg && v > window.App.stockOf(p, branchId)) { notify('Stock khatam — sirf ' + window.App.stockOf(p, branchId) + ' mojood', 'error'); renderPos(container); return; }
-        line.qty = v; renderPos(container);
+        if (!allowNeg && v > window.App.stockOf(p, branchId)) { notify('Stock khatam — sirf ' + window.App.stockOf(p, branchId) + ' mojood', 'error'); refreshPos(); return; }
+        line.qty = v; refreshPos();
       });
       row.querySelector('[data-act="discount"]').addEventListener('change', (e) => {
         line.discount = Math.max(0, Number(e.target.value) || 0);
-        renderPos(container);
+        refreshPos();
       });
       cartBox.appendChild(row);
     });
@@ -296,9 +306,21 @@ function renderPos(container) {
       '</div>');
     cartBox.appendChild(totals);
     const bd = totals.querySelector('#bill-discount');
-    bd.addEventListener('change', () => { billDiscount = Math.max(0, Math.min(subtotal, Number(bd.value) || 0)); renderPos(container); });
+    bd.addEventListener('change', () => { billDiscount = Math.max(0, Math.min(subtotal, Number(bd.value) || 0)); refreshPos(); });
   }
   drawCart();
+
+  // Targeted refresh (item 1): cart/qty changes redraw only the product
+  // grid and the cart panel — never the whole screen. Full renderPos is
+  // only for state resets (clear cart / sale complete).
+  container._refreshPos = function () {
+    try { drawGrid(searchInput.value); } catch (e) { /* grid stays as-is */ }
+    try { drawCart(); } catch (e) { /* cart stays as-is */ }
+  };
+  function refreshPos() {
+    if (container._refreshPos) container._refreshPos();
+    else renderPos(container);
+  }
 
   /* ---- Customer + payment ---- */
   const custLabel = el('<label>Customer (optional — balance ho to zaroori)</label>');
@@ -331,6 +353,15 @@ function renderPos(container) {
 }
 
 function completeSale(container) {
+  // Every failure here is a user-facing notice, never a crash (item 4).
+  try { return completeSaleInner(container); }
+  catch (e) {
+    if (window.App && window.App.handleError) window.App.handleError(e, 'sale');
+    else notify('Masla: Sale complete nahi ho saki — dobara koshish karein', 'error');
+  }
+}
+
+function completeSaleInner(container) {
   const st = S();
   if (cart.length === 0) { notify('Cart khaali hai', 'warning'); return; }
   const branchId = window.App.currentBranchId();
@@ -354,12 +385,21 @@ function completeSale(container) {
     const phone = customer ? (customer.phone || '') : newCustomerPhone.trim();
     if (!name || !phone) { notify('Balance baaqi hai — customer ka naam aur phone zaroori hai (credit sale)', 'error'); return; }
     if (!customer) {
-      customer = { id: (DB.nextId ? DB.nextId('customers') : Date.now()), name, phone, address: '', balance: 0 };
-      st.customers.push(customer);
+      // Data-layer duplicate guard (item 3): same phone = same customer.
+      const dup = DB.customerByPhone ? DB.customerByPhone(phone) : null;
+      if (dup) { customer = dup; }
+      else {
+        customer = { id: (DB.nextId ? DB.nextId('customers') : Date.now()), name, phone, address: '', balance: 0 };
+        st.customers.push(customer);
+      }
     }
   } else if (!customer && newCustomerName.trim()) {
-    customer = { id: (DB.nextId ? DB.nextId('customers') : Date.now()), name: newCustomerName.trim(), phone: newCustomerPhone.trim(), address: '', balance: 0 };
-    st.customers.push(customer);
+    const dup = DB.customerByPhone ? DB.customerByPhone(newCustomerPhone.trim()) : null;
+    if (dup) { customer = dup; }
+    else {
+      customer = { id: (DB.nextId ? DB.nextId('customers') : Date.now()), name: newCustomerName.trim(), phone: newCustomerPhone.trim(), address: '', balance: 0 };
+      st.customers.push(customer);
+    }
   }
   if (customer && balance > 0) customer.balance = (Number(customer.balance) || 0) + balance;
   const saleId = DB.nextId ? DB.nextId('sales') : ((st.sales || []).length + 1);
@@ -372,12 +412,17 @@ function completeSale(container) {
       qty: line.qty, unitPrice, price: unitPrice,
       lineDiscount, discount: lineDiscount,
       lineTotal: unitPrice * line.qty - lineDiscount,
-      cost: Number(p.purchasePrice) || 0, // cost snapshot at sale time
+      // Cost snapshot at sale time — Owner only; cashiers record 0 so
+      // cost never leaks into a sale record (item 7).
+      cost: DB.costOf ? DB.costOf(p, window.App.user) : (Number(p.purchasePrice) || 0),
     };
   });
   const nowIso = new Date().toISOString();
   const sale = {
     id: saleId, billNo: 'R-' + String(saleId).padStart(4, '0'),
+    // Idempotency key (item 3): a double-click / retry with the same
+    // clientRef can never create a second sale or deduct stock twice.
+    clientRef: 'sale-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
     date: nowIso, createdAt: nowIso, branchId,
     branchName: window.App.branchName(branchId),
     cashier: window.App.user ? window.App.user.name : '',
@@ -388,12 +433,21 @@ function completeSale(container) {
     customerPhone: customer ? (customer.phone || '') : '',
     status: balance > 0 ? 'partial' : 'completed', returns: [],
   };
-  // Deduct branch stock + log movements.
+  // Idempotent insert: if this clientRef already exists, the sale was
+  // already recorded — do NOT deduct stock again.
+  const inserted = DB.createSale ? DB.createSale(sale) : { sale, created: true };
+  if (!inserted.created) {
+    notify('Ye sale pehle se record ho chuki hai — dobara add nahi hui (' + saleBillNo(inserted.sale) + ')', 'warning');
+    cart = []; billDiscount = 0; paidAmount = ''; selectedCustomerId = ''; newCustomerName = ''; newCustomerPhone = '';
+    renderPos(container);
+    showSaleDone(container, inserted.sale);
+    return;
+  }
+  // Deduct branch stock + log movements (first creation only).
   items.forEach((it) => {
-    const p = (st.products || []).find((x) => String(x.id) === String(it.productId));
+    const p = DB.productById ? DB.productById(it.productId) : (st.products || []).find((x) => String(x.id) === String(it.productId));
     if (p) window.App.adjustStock(p, branchId, -it.qty, 'Sale', sale.billNo);
   });
-  st.sales.unshift(sale);
   save();
   notify('Sale kamyab — Bill ' + sale.billNo + ' (' + money(total) + ')', 'success');
   cart = []; billDiscount = 0; paidAmount = ''; selectedCustomerId = ''; newCustomerName = ''; newCustomerPhone = '';
@@ -445,12 +499,19 @@ function renderSales(container) {
     const fb = filters.querySelector('#f-branch').value;
     const from = filters.querySelector('#f-from').value;
     const to = filters.querySelector('#f-to').value;
-    let sales = (st.sales || []).slice();
-    // Legacy seed sales have branchId null (unassigned) — visible to all roles.
-    if (!isOwner) sales = sales.filter((s) => s.branchId === null || s.branchId === undefined || String(s.branchId) === String(window.App.currentBranchId()));
-    else if (fb) sales = sales.filter((s) => String(s.branchId) === String(fb));
-    if (from) sales = sales.filter((s) => String(saleDate(s)).slice(0, 10) >= from);
-    if (to) sales = sales.filter((s) => String(saleDate(s)).slice(0, 10) <= to);
+    // Indexed report query (item 8): branch+date filter uses the
+    // salesByBranch index instead of scanning every sale.
+    let sales;
+    if (DB.salesInRange && (from || to || fb)) {
+      sales = DB.salesInRange(from || null, to || null, isOwner ? (fb || 'all') : window.App.currentBranchId());
+    } else {
+      sales = (st.sales || []).slice();
+      // Legacy seed sales have branchId null (unassigned) — visible to all roles.
+      if (!isOwner) sales = sales.filter((s) => s.branchId === null || s.branchId === undefined || String(s.branchId) === String(window.App.currentBranchId()));
+      else if (fb) sales = sales.filter((s) => String(s.branchId) === String(fb));
+      if (from) sales = sales.filter((s) => String(saleDate(s)).slice(0, 10) >= from);
+      if (to) sales = sales.filter((s) => String(saleDate(s)).slice(0, 10) <= to);
+    }
     sales.sort((a, b) => String(saleDate(b)).localeCompare(String(saleDate(a))));
     if (sales.length === 0) {
       listWrap.appendChild(el('<div class="card"><p class="muted">Koi sale nahi mili.</p></div>'));
@@ -511,7 +572,7 @@ function cancelSale(sale) {
     const already = (sale.returns || []).reduce((a, r) => a + (r.items || []).filter((x) => String(x.productId) === String(line.productId)).reduce((b, x) => b + (Number(x.qty) || 0), 0), 0);
     const restock = itemQty(line) - already;
     if (restock <= 0) return;
-    const p = (st.products || []).find((x) => String(x.id) === String(line.productId));
+    const p = DB.productById ? DB.productById(line.productId) : (st.products || []).find((x) => String(x.id) === String(line.productId));
     if (p) window.App.adjustStock(p, sale.branchId, restock, 'Sale Cancel', saleBillNo(sale));
   });
   sale.status = 'cancelled';
