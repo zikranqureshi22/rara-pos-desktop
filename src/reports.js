@@ -32,7 +32,7 @@
     if (it.purchasePrice != null) return Number(it.purchasePrice) || 0;
     if (it.costPrice != null) return Number(it.costPrice) || 0;
     if (it.cost != null) return Number(it.cost) || 0;
-    var p = (S().products || []).find(function (x) { return String(x.id) === String(it.productId); });
+    var p = DB.productById ? DB.productById(it.productId) : (S().products || []).find(function (x) { return String(x.id) === String(it.productId); });
     return p ? (Number(p.purchasePrice != null ? p.purchasePrice : (p.costPrice || 0)) || 0) : 0;
   }
   function saleTotal(s) { if (s.total != null) return Number(s.total) || 0; return saleItems(s).reduce(function (a, it) { return a + itemQty(it) * itemPrice(it); }, 0); }
@@ -79,8 +79,16 @@
       var branchValNow = containerEl._rpBranch || 'all';
       var from = new Date(fromValNow + 'T00:00:00');
       var to = new Date(toValNow + 'T00:00:00');
-      function branchOk(rec) { return branchValNow === 'all' || rec.branchId == null || String(rec.branchId) === String(branchValNow); }
-      var sales = (st.sales || []).filter(function (s) { return inRange(saleDate(s), from, to) && branchOk(s); });
+      // Indexed report query (item 8): branch+date filter uses the
+      // salesByBranch index instead of scanning every sale.
+      var sales;
+      if (DB.salesInRange) {
+        sales = DB.salesInRange(fromValNow, toValNow, branchValNow);
+      } else {
+        var fromD = from, toD = to;
+        function branchOk2(rec) { return branchValNow === 'all' || rec.branchId == null || String(rec.branchId) === String(branchValNow); }
+        sales = (st.sales || []).filter(function (s) { return inRange(saleDate(s), fromD, toD) && branchOk2(s); });
+      }
       var completed = sales.filter(function (s) { return !isCancelled(s); });
       var returned = sales.filter(isReturned);
       var grossSales = completed.reduce(function (a, s) { return a + saleTotal(s); }, 0);
@@ -114,7 +122,11 @@
     }
 
     function draw() {
+      // Report generation time is measured (item 8) so slowness is visible.
+      var t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
       var r = compute();
+      var t1 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      r.ms = Math.round((t1 - t0) * 10) / 10;
       function card(label, value, sub) {
         return '<div class="card"><div style="font-size:13px;opacity:.75">' + esc(label) + '</div><div style="font-size:22px;font-weight:700;margin-top:4px">' + value + '</div>' + (sub ? '<div style="font-size:12px;opacity:.7;margin-top:4px">' + sub + '</div>' : '') + '</div>';
       }
@@ -124,6 +136,7 @@
       }).join('');
 
       containerEl.querySelector('#rp-result').innerHTML =
+        '<p class="muted">Report ' + r.ms + ' ms me tayyar hui — ' + r.orders + ' order(s), ' + r.from + ' se ' + r.to + ' tak.</p>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:12px 0">' +
         card('Total Sales', esc(money(r.grossSales)), r.orders + ' completed order(s)') +
         card('Returns', esc(money(r.returnsTotal)), r.returnsCount + ' returned sale(s)') +
