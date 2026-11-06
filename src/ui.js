@@ -720,8 +720,10 @@ const App = {
       tEl.textContent = title || 'Confirm Karein';
       xEl.textContent = text || '';
       overlay.hidden = false;
+      overlay.style.display = 'flex';
       const done = (v) => {
         overlay.hidden = true;
+        overlay.style.display = 'none';
         yesBtn.removeEventListener('click', onYes);
         noBtn.removeEventListener('click', onNo);
         resolve(v);
