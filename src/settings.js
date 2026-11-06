@@ -45,6 +45,25 @@
       '<input type="file" id="st-import-file" accept=".json,application/json" style="display:none">' +
       '<p style="font-size:12px;opacity:.75">Import replaces all current data (products, sales, customers, suppliers, expenses, employees, logins and settings) with the file you choose. Export a backup first. Restore Latest Backup sab se naye verified backup se data wapas lata hai.</p></div>';
   }
+  // Self auto-update: the app checks GitHub Releases for a new version
+  // and installs it itself — no manual reinstall. The repo is PRIVATE,
+  // so a read-only GitHub token is needed once (see the steps below).
+  // The token is stored only on this laptop (app-data folder), never in
+  // the repo and never shown back — only "token saved hai / nahi" is shown.
+  function updatesCardHtml() {
+    var autoOn = true;
+    try { if (window.App && App.update && App.update.state && typeof App.update.state.autoCheck === 'boolean') autoOn = App.update.state.autoCheck; } catch (e) { /* default ON */ }
+    return '<div class="card" style="margin-top:12px"><h3>Updates — Khud Update Ho Jayega</h3>' +
+      '<p>App khud naya version check karta hai aur download kar ke install kar deta hai — dobara install karne ki zaroorat nahi. Naya version aane par restart karne ka notice aayega.</p>' +
+      '<p>Current version: <b id="upd-version">…</b> &nbsp;|&nbsp; Status: <b id="upd-status">…</b> &nbsp;|&nbsp; Last check: <b id="upd-last-check">…</b></p>' +
+      '<div class="form-row"><label><input type="checkbox" id="upd-auto" ' + (autoOn ? 'checked' : '') + '> App khulte hi update check karein (automatic)</label></div>' +
+      '<div class="form-row"><label>GitHub Token (sirf ek dafa, Owner) <input type="password" id="upd-token" autocomplete="off" placeholder="Token yahan dalein — save karne ke baad nazar nahi aayega"></label></div>' +
+      '<button class="btn btn-primary" id="upd-save-token">Token Save Karein</button> ' +
+      '<button class="btn" id="upd-clear-token">Token Hatayein</button> ' +
+      '<button class="btn" id="upd-check">Update Check Karein</button> ' +
+      '<button class="btn btn-primary" id="upd-restart" style="display:none">Restart Karein aur Update Lagayein</button>' +
+      '<p style="font-size:12px;opacity:.75">Token kaise banayein (sirf ek dafa): GitHub kholein → apni photo → Settings → Developer settings → Personal access tokens → Fine-grained tokens → "Generate new token" → sirf <b>rara-pos-desktop</b> repo select karein → Permissions me <b>Contents: Read-only</b> dein → token banayein aur yahan dalein. Token sirf is laptop par save hota hai, kahin aur nahi jata, aur GitHub se kabhi bhi revoke/rotate kar sakte hain. Token ke baghair update check nahi chalega — app phir bhi normal kaam karega.</p></div>';
+  }
   // Data check (item 3): report any duplicates that already exist.
   // Nothing is deleted here — the Owner decides what to fix.
   function dataCheckHtml() {
@@ -88,7 +107,7 @@
       '<label><input type="checkbox" id="st-neg" ' + (settings.allowNegativeStock ? 'checked' : '') + '> Allow negative stock</label></div>' +
       '<p style="font-size:12px;opacity:.75">Session Timeout: itne minute tak koi activity na ho to app lock ho jayega aur PIN dobara mangega (data aur branch waisi ki waisi rehti hai). 1 minute pehle warning notice aata hai.</p>' +
       '<button class="btn btn-primary" id="st-save-defaults">Save Defaults</button></div>' +
-      backupCardHtml() + dataCheckHtml();
+      backupCardHtml() + updatesCardHtml() + dataCheckHtml();
 
     containerEl.querySelector('#st-save-business').addEventListener('click', function () {
       var name = val('st-name', containerEl).trim();
@@ -121,6 +140,46 @@
       else { notify('Masla: Backup nahi ban saka — ' + (res.error || 'dobara koshish karein'), 'error'); return; }
       Screens.settings(containerEl);
     });
+    // Updates card: token save/clear, manual check, restart-to-install,
+    // auto-check toggle. The token value itself is never displayed back
+    // and never stored in the data file — main process keeps it in
+    // <userData>/update-token.json only.
+    (function wireUpdates() {
+      var ipc = null;
+      try { ipc = (window.App && App._updateIpc) ? App._updateIpc : require('electron').ipcRenderer; } catch (e) { ipc = null; }
+      var tokenInput = containerEl.querySelector('#upd-token');
+      var saveBtn = containerEl.querySelector('#upd-save-token');
+      if (saveBtn) saveBtn.addEventListener('click', function () {
+        var t = tokenInput ? tokenInput.value.trim() : '';
+        if (!t) { notify('Pehle token dalein', 'warning'); return; }
+        try { if (ipc) ipc.send('update-save-token', t); } catch (e) { notify('Masla: Token save nahi ho saka', 'error'); return; }
+        if (tokenInput) tokenInput.value = '';
+        notify('Token save ho gaya — ab update check chalega', 'success');
+        try { if (window.App && App._refreshUpdateState) App._refreshUpdateState(); } catch (e) { /* ignore */ }
+      });
+      var clearBtn = containerEl.querySelector('#upd-clear-token');
+      if (clearBtn) clearBtn.addEventListener('click', function () {
+        try { if (ipc) ipc.send('update-clear-token'); } catch (e) { /* ignore */ }
+        if (tokenInput) tokenInput.value = '';
+        notify('Token hata diya gaya — update check band ho jayega jab tak naya token na dalein', 'info');
+        try { if (window.App && App._refreshUpdateState) App._refreshUpdateState(); } catch (e) { /* ignore */ }
+      });
+      var checkBtn = containerEl.querySelector('#upd-check');
+      if (checkBtn) checkBtn.addEventListener('click', function () {
+        try { if (window.App && App.checkForUpdates) App.checkForUpdates(); } catch (e) { notify('Masla: Update check shuru nahi ho saka', 'error'); }
+      });
+      var restartBtn = containerEl.querySelector('#upd-restart');
+      if (restartBtn) restartBtn.addEventListener('click', function () {
+        try { if (window.App && App.installUpdate) App.installUpdate(); } catch (e) { /* ignore */ }
+      });
+      var autoBox = containerEl.querySelector('#upd-auto');
+      if (autoBox) autoBox.addEventListener('change', function () {
+        try { if (ipc) ipc.send('update-set-auto-check', !!autoBox.checked); } catch (e) { /* ignore */ }
+        notify(autoBox.checked ? 'Automatic update check ON hai' : 'Automatic update check OFF hai — manual check se update karein', 'info');
+      });
+      try { if (window.App && App.renderUpdateStatus) App.renderUpdateStatus(); } catch (e) { /* ignore */ }
+      try { if (window.App && App._refreshUpdateState) App._refreshUpdateState(); } catch (e) { /* ignore */ }
+    })();
     containerEl.querySelector('#st-restore').addEventListener('click', function () {
       confirmDlg('Restore Latest Backup?', 'Sab se naya backup restore hoga. Current data ki pehle aik safety backup ban jayegi, phir data backup se replace ho jayega.').then(function (ok) {
         if (!ok) return;
