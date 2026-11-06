@@ -230,19 +230,36 @@ body[data-theme="dark"] .warning-banner { background: #4a3800; color: #ffe082; b
 .return-form { background: var(--panel2); border-radius: 8px; padding: 12px; margin-top: 8px; }
 .hidden { display: none !important; }
 
+/* ---------- Responsive layout (item 6) ---------- */
+@media (max-width: 1180px) {
+  .sidebar { width: 180px; flex-basis: 180px; }
+  .pos-layout { grid-template-columns: 1fr 330px; }
+  .screen { padding: 14px; }
+}
+@media (max-width: 1024px) {
+  .sidebar { width: 160px; flex-basis: 160px; }
+  .sidebar button.nav-item { font-size: 14px; padding: 9px 10px; }
+  .pos-layout { grid-template-columns: 1fr 300px; }
+  .product-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  h1 { font-size: 20px; }
+}
 /* ---------- Mobile ---------- */
 @media (max-width: 900px) {
   .pos-layout { grid-template-columns: 1fr; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
-}
-@media (max-width: 760px) {
+  /* Sidebar collapses to a horizontal scrollable strip so the screen
+   * keeps its full width on small laptops and tablets. */
   .app-body { flex-direction: column; }
   .sidebar {
     width: 100%; flex: none; flex-direction: row; overflow-x: auto;
     border-right: none; border-bottom: 1px solid var(--border); padding: 8px;
   }
   .sidebar button.nav-item { width: auto; white-space: nowrap; }
+}
+@media (max-width: 760px) {
   .screen { padding: 12px; }
   .header-name { font-size: 18px; }
   .header-brand img { height: 36px; }
+  .product-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .product-card img { height: 96px; }
 }
