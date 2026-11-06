@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RARA POS — Fragrance / Fashions</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-theme="dark">
+<div id="notice-stack" aria-live="polite"></div>
+
+<!-- Login overlay: shown when no user is logged in -->
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <img id="login-logo-img" src="assets/rara-logo-dark.png" alt="RARA" onerror="this.style.display='none'">
+      <div class="login-brand">RARA</div>
+      <div class="login-sub">Fragrance / Fashions</div>
+    </div>
+    <div id="login-body"></div>
+  </div>
+</div>
+
+<!-- Confirm dialog -->
+<div id="confirm-overlay" class="confirm-overlay" hidden>
+  <div class="confirm-box">
+    <h3 id="confirm-title"></h3>
+    <p id="confirm-text"></p>
+    <div class="confirm-actions">
+      <button id="confirm-no" class="btn btn-ghost">Cancel</button>
+      <button id="confirm-yes" class="btn btn-danger">Confirm Karein</button>
+    </div>
+  </div>
+</div>
+
+<div id="app-shell" class="app-shell" hidden>
+  <header class="app-header">
+    <div class="header-brand">
+      <img id="header-logo-img" src="assets/rara-logo-dark.png" alt="RARA logo" onerror="this.style.display='none'">
+      <span id="header-logo-text" class="header-logo-text">RARA</span>
+      <span class="header-titles">
+        <span class="header-name">RARA</span>
+        <span class="header-sub">Fragrance / Fashions</span>
+      </span>
+    </div>
+    <div class="header-right">
+      <select id="branch-select" class="input branch-select" title="Branch"></select>
+      <span id="net-badge" class="badge badge-offline">Offline — Local</span>
+      <button id="theme-toggle" class="btn btn-ghost" type="button" title="Dark / Light theme">Light Mode</button>
+      <span id="user-chip" class="user-chip"></span>
+      <button id="logout-btn" class="btn btn-ghost" type="button">Lock / Logout</button>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <nav id="sidebar" class="sidebar" aria-label="Main navigation"></nav>
+    <main id="screen" class="screen"></main>
+  </div>
+</div>
+
+<!-- Hidden 80mm thermal receipt print area -->
+<div id="receipt-print" class="receipt-print"></div>
+
+<script src="src/ui.js"></script>
+<script src="src/pos.js"></script>
+<script src="src/products.js"></script>
+<script src="src/stock.js"></script>
+<script src="src/dashboard.js"></script>
+<script src="src/management.js"></script>
+<script src="src/reports.js"></script>
+<script src="src/settings.js"></script>
+<script>
+  // Renderer entry point. Other screen modules (dashboard / management /
+  // reports / settings) register into window.Screens; App.go() falls back
+  // gracefully if one has not loaded yet.
+  window.App.init();
+</script>
+</body>
+</html>
