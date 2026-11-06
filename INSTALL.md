@@ -43,6 +43,24 @@ The app ships with the 6 RARA products and their selling prices already loaded, 
 - Stock decreases on each sale; low-stock warnings appear at 10 units or fewer.
 - **Back up your data:** copy `%APPDATA%\RARA POS\rara-pos-data.json` to a USB stick or another safe place from time to time. If the laptop is lost or reset, that file is the whole shop record.
 
+## 6. Khud update — dobara install nahi karna parega
+
+Version 1.1.0 se app khud update ho jata hai. Pehli dafa sirf ek token dalna hai (Owner):
+
+**Token banayein (sirf ek dafa):**
+1. GitHub kholein aur login karein.
+2. Upar right corner me apni photo → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens** → **Generate new token**.
+3. Sirf **`rara-pos-desktop`** repo select karein (kisi aur repo ko nahi).
+4. Permissions me **Contents: Read-only** dein, baaki kuch nahi.
+5. Token banayein — ye sirf ek dafa dikhega, is liye foran copy karein.
+
+**Token app me dalein:**
+1. RARA POS me Owner login karein → **Settings** → **Updates**.
+2. Token wale box me token dalein → **Token Save Karein**.
+3. Bas — ab app khud update check karega. Token sirf is laptop par save hota hai, kahin aur nahi jata. GitHub se token kabhi bhi revoke/rotate kar sakte hain.
+
+**Update kaise lagta hai:** naya version aane par app khud download karta hai (progress notice dikhega), phir **"Restart Karein aur Update Lagayein"** ka notice aayega — ek restart aur naya version lag jayega. Aapka data (products, sales, stock) update se kabhi nahi badalta. Agar token na dala ho to app normal chalega, bas update check par token mangega.
+
 ## If something goes wrong
 
 - **App won't open:** restart the laptop and try again. If it still won't open, reinstall from the same `.exe` — reinstalling does not delete your data file.
