@@ -253,12 +253,49 @@ const App = {
       headerText.style.display = 'none';
       headerImg.onerror = () => { headerImg.style.display = 'none'; headerText.style.display = ''; };
     }
+    // Video background follows the theme (Dark only) + the Live
+    // Background setting in Settings > Defaults.
+    this.applyLiveBackground();
   },
   toggleTheme() {
     this.theme = this.theme === 'dark' ? 'light' : 'dark';
     try { localStorage.setItem('rara-pos-theme', this.theme); } catch (e) { /* private mode */ }
     this.applyTheme();
     this.notify(this.theme === 'dark' ? 'Dark theme lag gaya' : 'Light theme lag gaya', 'info');
+  },
+
+  /* ----- live video background (v1.1.1) ----- */
+  // The video only ever plays in the Dark theme and only when the Owner
+  // has left Settings > Live Background ON (default ON). Everywhere else
+  // it is hidden AND paused, so it costs no CPU or battery.
+  liveBackgroundEnabled() {
+    if (this.theme !== 'dark') return false;
+    const s = this.state && this.state.settings;
+    if (s && typeof s.liveBackground === 'boolean') return s.liveBackground;
+    return true;
+  },
+  applyLiveBackground() {
+    const video = document.getElementById('bg-video');
+    const overlay = document.getElementById('bg-overlay');
+    if (!video) return;
+    const on = this.liveBackgroundEnabled();
+    video.classList.toggle('bg-off', !on);
+    if (overlay) overlay.classList.toggle('bg-off', !on);
+    if (on) {
+      try {
+        const p = video.play();
+        if (p && p.catch) p.catch(function () { /* autoplay blocked: first frame still shows */ });
+      } catch (e) { /* ignore */ }
+    } else {
+      try { video.pause(); } catch (e) { /* ignore */ }
+    }
+  },
+  // Called by Settings when the owner flips the Live Background toggle.
+  setLiveBackground(on) {
+    this.state.settings = this.state.settings || {};
+    this.state.settings.liveBackground = !!on;
+    this.save();
+    this.applyLiveBackground();
   },
 
   updateNetBadge() {
