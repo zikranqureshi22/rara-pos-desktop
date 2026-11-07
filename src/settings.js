@@ -105,7 +105,9 @@
       '<label>Default Branch <select id="st-branch">' + (st.branches || []).map(function (b) { return '<option value="' + esc(b.id) + '"' + (String(b.id) === String(settings.defaultBranchId) ? ' selected' : '') + '>' + esc(b.name) + '</option>'; }).join('') + '</select></label>' +
       '<label>Session Timeout (minutes) <input type="number" id="st-timeout" min="5" max="120" step="1" value="' + esc(settings.sessionTimeoutMinutes != null ? settings.sessionTimeoutMinutes : 15) + '"></label>' +
       '<label><input type="checkbox" id="st-neg" ' + (settings.allowNegativeStock ? 'checked' : '') + '> Allow negative stock</label></div>' +
+      '<div style="margin-top:10px"><label style="margin:0"><input type="checkbox" id="st-live-bg" ' + (settings.liveBackground !== false ? 'checked' : '') + '> Live Background (video) — Dark theme me background video chalaye</label></div>' +
       '<p style="font-size:12px;opacity:.75">Session Timeout: itne minute tak koi activity na ho to app lock ho jayega aur PIN dobara mangega (data aur branch waisi ki waisi rehti hai). 1 minute pehle warning notice aata hai.</p>' +
+      '<p style="font-size:12px;opacity:.75">Live Background: ON ho to Dark theme me video background chalta hai; OFF ho to plain dark background rehta hai aur video pause ho jata hai. Light theme me video kabhi nahi chalta.</p>' +
       '<button class="btn btn-primary" id="st-save-defaults">Save Defaults</button></div>' +
       backupCardHtml() + updatesCardHtml() + dataCheckHtml();
 
@@ -129,9 +131,25 @@
       st.settings.defaultBranchId = branchIdOf(val('st-branch', containerEl)) || settings.defaultBranchId;
       st.settings.allowNegativeStock = !!containerEl.querySelector('#st-neg').checked;
       st.settings.sessionTimeoutMinutes = timeoutVal;
+      st.settings.liveBackground = !!containerEl.querySelector('#st-live-bg').checked;
       save(); notify('Defaults saved.', 'success');
       // The new timeout applies from the next login / activity reset.
       try { if (window.App && App.resetIdleTimer) App.resetIdleTimer(); } catch (e) { /* ignore */ }
+      try { if (window.App && App.applyLiveBackground) App.applyLiveBackground(); } catch (e) { /* ignore */ }
+    });
+    // Live Background toggle applies immediately (no need to press Save).
+    containerEl.querySelector('#st-live-bg').addEventListener('change', function () {
+      var on = !!containerEl.querySelector('#st-live-bg').checked;
+      try {
+        if (window.App && App.setLiveBackground) {
+          App.setLiveBackground(on);
+          notify(on ? 'Live Background ON hai — video background chal raha hai' : 'Live Background OFF hai — plain dark background', 'info');
+          return;
+        }
+      } catch (e) { /* fall through to plain save */ }
+      st.settings = st.settings || {};
+      st.settings.liveBackground = on;
+      save();
     });
     containerEl.querySelector('#st-backup-now').addEventListener('click', function () {
       var res = { ok: false };
