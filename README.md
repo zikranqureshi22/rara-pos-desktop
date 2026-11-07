@@ -33,6 +33,13 @@ Once installed from v1.1.0, the app updates itself:
 
 **One-time token (Owner only, because the repo is private):** GitHub Releases in a private repo cannot be downloaded without authentication, so the Owner pastes a read-only token **once** in Settings > Updates. It is a **fine-grained personal access token** with read-only access to this one repo only (Contents: Read-only), created at GitHub → photo → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token → select only `rara-pos-desktop` → Contents: Read-only. The token is stored only on that laptop (app-data folder), never in the repo or code, and can be revoked/rotated anytime on GitHub. Without a token the app still works normally — update checks just report that the token is needed.
 
+## Theme — live video background (v1.1.1)
+
+The app has a warm dark theme inspired by the RARA brand video: a short looping video (`assets/background.mp4`) plays live behind the whole app — login screen and all — under a dark gradient overlay, with translucent warm-brown panels, 16px rounded corners and amber-orange primary buttons (Delete/Cancel stay red, WhatsApp stays green). The RARA logo and all product photos are unchanged.
+
+- **Dark / Light toggle** (header button) still works. The video only plays in the **Dark** theme; the Light theme is a clean warm off-white with the video hidden and paused.
+- **Settings > Defaults > Live Background (video)** turns the video on/off (default ON). When OFF the video is hidden **and paused** and the app falls back to a plain dark background. The choice is saved in Settings, so it survives restarts.
+
 ## Releasing a new version (for the developer)
 
 1. Bump `version` in `package.json` (e.g. `1.1.0` → `1.2.0`).
