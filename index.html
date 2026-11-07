@@ -7,6 +7,11 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body data-theme="dark">
+<!-- Live video background (v1.1.1): plays behind the whole app in the Dark
+     theme. Paused + hidden in the Light theme and when Settings > Live
+     Background is OFF (see App.applyLiveBackground). -->
+<video id="bg-video" src="assets/background.mp4" muted loop autoplay playsinline preload="auto" aria-hidden="true" tabindex="-1"></video>
+<div id="bg-overlay" aria-hidden="true"></div>
 <div id="notice-stack" aria-live="polite"></div>
 
 <!-- Login overlay: shown when no user is logged in -->
