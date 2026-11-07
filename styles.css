@@ -12,19 +12,47 @@
   --danger: #e53935;
   --danger-dark: #b71c1c;
   --wa: #25D366;
-  --radius: 10px;
+  --radius: 16px;
 }
+/* v1.1.1 theme: warm dark brown-black over the live video background.
+   Panels are slightly translucent so the video shows through softly;
+   the overlay gradient (below) keeps text readable. Primary buttons use
+   the video's warm amber-orange. Delete/Cancel stay red, WhatsApp green. */
 body[data-theme="dark"] {
-  --bg: #0a262f; --panel: #123640; --panel2: #1b4753; --panel3: #0f2f3a;
-  --text: #ffffff; --muted: #b8d4dc; --border: #2a5a68; --input-bg: #0d323d;
-  --header-bg: #0d323d; --sidebar-bg: #0c2b34; --hover: #1b4753; --shadow: rgba(0,0,0,.35);
+  --bg: #0d0805; --panel: rgba(28,21,16,.86); --panel2: rgba(44,32,23,.86); --panel3: rgba(20,15,11,.88);
+  --text: #fff7ee; --muted: #d9c4ae; --border: rgba(255,154,61,.18); --input-bg: rgba(16,11,8,.88);
+  --header-bg: rgba(24,17,12,.90); --sidebar-bg: rgba(22,16,11,.90); --hover: rgba(255,154,61,.14); --shadow: rgba(0,0,0,.45);
+  --primary: #ff9a3d; --primary-text: #241100;
   --logo-img: block;
 }
 body[data-theme="light"] {
-  --bg: #e8f5ee; --panel: #ffffff; --panel2: #f2faf5; --panel3: #eef7f1;
-  --text: #10231c; --muted: #4c6b5d; --border: #cfe3d8; --input-bg: #ffffff;
-  --header-bg: #ffffff; --sidebar-bg: #ffffff; --hover: #e6f4ec; --shadow: rgba(16,35,28,.12);
+  --bg: #faf6f1; --panel: #fffdf9; --panel2: #fff7ec; --panel3: #f6ede2;
+  --text: #241a12; --muted: #7a6a58; --border: #e9d9c6; --input-bg: #ffffff;
+  --header-bg: #fffdf9; --sidebar-bg: #fff9f1; --hover: #fbeedd; --shadow: rgba(36,26,18,.10);
+  --primary: #f59e0b; --primary-text: #241100;
 }
+/* ---------- Live video background (v1.1.1) ---------- */
+/* Fixed full-screen video behind everything; the overlay gradient above
+   it darkens the busy parts so panels and text stay readable. The video
+   is hidden (and paused by JS) in the Light theme and when the Live
+   Background setting is OFF (.bg-off). */
+#bg-video {
+  position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  z-index: 0; pointer-events: none; background: #0d0805;
+}
+#bg-overlay {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(160deg, rgba(12,8,5,.72) 0%, rgba(10,8,6,.80) 55%, rgba(10,10,12,.86) 100%);
+}
+body[data-theme="light"] #bg-video,
+body[data-theme="light"] #bg-overlay,
+#bg-video.bg-off, #bg-overlay.bg-off { display: none; }
+/* App content sits above the video + overlay. The login screen is fixed
+   with its own z-index; its background is transparent in Dark so the
+   video shows around the login card. */
+.app-shell { position: relative; z-index: 2; }
+body[data-theme="dark"] .login-screen { background: transparent; }
+body[data-theme="dark"] .product-card .p-price { color: #ffb066; }
 html, body { margin: 0; padding: 0; }
 body {
   background: var(--bg); color: var(--text);
@@ -64,7 +92,7 @@ small, .muted { color: var(--muted); }
   font-size: 15px; font-family: inherit;
 }
 .sidebar button.nav-item:hover { background: var(--hover); }
-.sidebar button.nav-item.active { background: var(--accent); color: #fff; font-weight: 700; }
+.sidebar button.nav-item.active { background: var(--primary); color: var(--primary-text); font-weight: 700; }
 .sidebar button.nav-item:disabled { opacity: .38; cursor: not-allowed; }
 .screen { flex: 1; padding: 18px; min-width: 0; overflow-x: auto; }
 
