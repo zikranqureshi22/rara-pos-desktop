@@ -190,6 +190,48 @@ window.App.receiptText = receiptText;
 window.App.measureReceiptHeightPx = measureReceiptHeightPx;
 window.App.testPrintReceipt = testPrintReceipt;
 
+/* ---------------- Bill preview (v1.1.2) ----------------
+ * The bill is SHOWN first, then printed. The preview renders the SAME
+ * receiptHtml(sale) that printing uses, so preview and printed bill
+ * always match. Print uses the measured-height print path; Close
+ * dismisses without printing. */
+let previewSale = null;
+function showBillPreview(sale) {
+  const overlay = document.getElementById('bill-preview-overlay');
+  const body = document.getElementById('bill-preview-body');
+  if (!overlay || !body || !sale) return false;
+  previewSale = sale;
+  body.innerHTML = receiptHtml(sale);
+  overlay.hidden = false;
+  return true;
+}
+function hideBillPreview() {
+  const overlay = document.getElementById('bill-preview-overlay');
+  if (overlay) overlay.hidden = true;
+  const body = document.getElementById('bill-preview-body');
+  if (body) body.innerHTML = '';
+  previewSale = null;
+}
+function wireBillPreview() {
+  const overlay = document.getElementById('bill-preview-overlay');
+  const printBtn = document.getElementById('bill-preview-print');
+  const closeBtn = document.getElementById('bill-preview-close');
+  const xBtn = document.getElementById('bill-preview-x');
+  if (printBtn) printBtn.onclick = async () => {
+    if (!previewSale) return;
+    const ok = await printReceipt(previewSale);
+    if (ok) hideBillPreview();
+    // If printing failed, the modal stays open so the user can retry
+    // from the print dialog or close it without printing.
+  };
+  if (closeBtn) closeBtn.onclick = hideBillPreview;
+  if (xBtn) xBtn.onclick = hideBillPreview;
+  if (overlay) overlay.addEventListener('click', (e) => { if (e.target === overlay) hideBillPreview(); });
+}
+wireBillPreview();
+window.App.showBillPreview = showBillPreview;
+window.App.hideBillPreview = hideBillPreview;
+
 /* ---------------- Sale processing ---------------- */
 function processReturn(sale, returnItems, refundMethod) {
   // returnItems: [{productId, qty}] — restocks + records refund.
@@ -537,6 +579,8 @@ function showSaleDone(container, sale) {
   wa.href = phone ? 'https://wa.me/' + (phone.startsWith('92') ? phone : '92' + phone.replace(/^0/, '')) + '?text=' + text
                   : 'https://wa.me/?text=' + text;
   box.querySelector('#sd-close').addEventListener('click', () => box.remove());
+  // Bill preview (v1.1.2): show the bill first, then print from the preview.
+  showBillPreview(sale);
 }
 
 /* ---------------- Sales History screen ---------------- */
@@ -602,6 +646,9 @@ function renderSales(container) {
         '<td>' + money(saleBalance(sale)) + '</td><td>' + statusBadge + '</td><td></td>';
       const td = tr.lastElementChild;
       const btnRow = el('<div class="btn-row"></div>');
+      const details = el('<button type="button" class="btn btn-sm">Details</button>');
+      details.addEventListener('click', () => showBillPreview(sale));
+      btnRow.appendChild(details);
       const reprint = el('<button type="button" class="btn btn-sm">Reprint</button>');
       reprint.addEventListener('click', () => printReceipt(sale));
       btnRow.appendChild(reprint);
