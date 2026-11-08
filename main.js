@@ -169,6 +169,45 @@ function setupAutoUpdater() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Thermal receipt printing (v1.1.2): the printed receipt must be exactly one
+// page whose length matches the bill content. CSS alone cannot do that
+// (measured: @page size:80mm auto is invalid in Blink, and a square 80mm
+// page splits a 3-item bill across 2 pages mid-bill). So the renderer
+// measures the rendered receipt height and the main process prints it with
+// Electron's pageSize option — 80mm wide, content height, one copy, no
+// margins. The token/auto-update code above is untouched.
+// ---------------------------------------------------------------------------
+ipcMain.handle('printer-list', async () => {
+  try {
+    if (!mainWin || mainWin.isDestroyed()) return [];
+    const printers = await mainWin.webContents.getPrintersAsync();
+    return (printers || []).map((p) => ({ name: p.name, displayName: p.displayName || p.name, isDefault: !!p.isDefault }));
+  } catch (e) { return []; }
+});
+ipcMain.handle('print-receipt', async (_e, opts) => {
+  try {
+    if (!mainWin || mainWin.isDestroyed()) return { ok: false, error: 'no-window' };
+    const height = opts && Number(opts.heightMicrons);
+    const deviceName = opts && typeof opts.deviceName === 'string' ? opts.deviceName.trim() : '';
+    if (!deviceName) return { ok: false, error: 'no-printer' };
+    if (!height || height < 20000 || height > 600000) return { ok: false, error: 'bad-height' };
+    await mainWin.webContents.print({
+      silent: true,
+      deviceName,
+      pageSize: { width: 80000, height: Math.round(height) },
+      margins: { marginType: 'none' },
+      printBackground: false,
+      copies: 1
+    });
+    return { ok: true };
+  } catch (e) {
+    // Never surface raw errors (they can contain paths); the renderer
+    // shows a short Roman Urdu notice and falls back to the dialog.
+    return { ok: false, error: 'print-failed' };
+  }
+});
+
 // Automatic backup on close: copy the live data file into
 // <userData>/backups with a timestamp and verify it parses, so the
 // last good state always survives a bad shutdown. Keeps the last 7.
