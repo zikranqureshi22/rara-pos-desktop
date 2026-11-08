@@ -237,10 +237,24 @@ body[data-theme="dark"] .warning-banner { background: #4a3800; color: #ffe082; b
 .thumb-ph { width: 48px; height: 48px; border-radius: 6px; background: var(--panel3); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; text-align: center; overflow: hidden; }
 
 /* ---------- Receipt print (80mm thermal, black on white) ---------- */
+/* @page MUST stay top-level: Chromium ignores @page nested inside @media print.
+   No @page size is set on purpose for the window.print() FALLBACK path:
+   the dialog then uses the printer's own stock (e.g. the user's 80x150mm),
+   which fits typical bills on one page. A square `size: 80mm` was MEASURED
+   to split a 3-item bill (96.7mm tall) across 2 pages mid-bill, and
+   `size: 80mm auto` is INVALID CSS — Blink dropped the whole size
+   declaration (page fell back to Letter). The primary thermal path does
+   not use @page at all: main.js prints with Electron's pageSize option
+   at the measured receipt height (see src/pos.js printReceiptHtml). */
+@page { margin: 0; }
 .receipt-print { display: none; }
 @media print {
-  body * { visibility: hidden !important; }
-  #receipt-print, #receipt-print * { visibility: visible !important; }
+  /* display:none (NOT visibility:hidden): hidden elements still occupy
+     layout height, which paginated the whole POS page into 5 mostly-blank
+     pages on the user's printer. Hiding every direct body child except the
+     receipt leaves only the receipt in the print layout — its descendants
+     keep their own styles untouched. */
+  body > :not(#receipt-print) { display: none !important; }
   #receipt-print { display: block !important; position: absolute; left: 0; top: 0; width: 80mm; }
   body { background: #fff !important; }
 }
