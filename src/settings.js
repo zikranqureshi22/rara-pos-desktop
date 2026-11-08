@@ -64,6 +64,21 @@
       '<button class="btn btn-primary" id="upd-restart" style="display:none">Restart Karein aur Update Lagayein</button>' +
       '<p style="font-size:12px;opacity:.75">Token kaise banayein (sirf ek dafa): GitHub kholein → apni photo → Settings → Developer settings → Personal access tokens → Fine-grained tokens → "Generate new token" → sirf <b>rara-pos-desktop</b> repo select karein → Permissions me <b>Contents: Read-only</b> dein → token banayein aur yahan dalein. Token sirf is laptop par save hota hai, kahin aur nahi jata, aur GitHub se kabhi bhi revoke/rotate kar sakte hain. Token ke baghair update check nahi chalega — app phir bhi normal kaam karega.</p></div>';
   }
+  // Thermal printer (v1.1.2): the Owner picks the receipt printer once.
+  // Bills print on it with the measured receipt height, so the roll
+  // stops after the bill instead of feeding a full page. No printer
+  // picked = the old print dialog (window.print) is used instead.
+  function printerCardHtml() {
+    var name = '';
+    try { name = (S().settings && S().settings.printerName) || ''; } catch (e) {}
+    return '<div class="card" style="margin-top:12px"><h3>Printer — Thermal Receipt</h3>' +
+      '<p>Bill isi printer par print hoga. Printer select karein aur Save karein — bill ki lambai bill ke mutabiq hogi, poora roll nahi niklega.</p>' +
+      '<div class="form-row"><label>Thermal Printer <select id="st-printer"><option value="">Printer dhoond rahe hain…</option></select></label></div>' +
+      '<p id="st-printer-note" style="font-size:12px;opacity:.75">Current printer: <b>' + (name ? esc(name) : 'koi nahi — abhi tak select nahi hua') + '</b></p>' +
+      '<button class="btn btn-primary" id="st-save-printer">Printer Save Karein</button> ' +
+      '<button class="btn" id="st-test-printer">Test Print</button> ' +
+      '<button class="btn" id="st-refresh-printer">Printer List Dobara Dekhein</button></div>';
+  }
   // Data check (item 3): report any duplicates that already exist.
   // Nothing is deleted here — the Owner decides what to fix.
   function dataCheckHtml() {
@@ -109,7 +124,7 @@
       '<p style="font-size:12px;opacity:.75">Session Timeout: itne minute tak koi activity na ho to app lock ho jayega aur PIN dobara mangega (data aur branch waisi ki waisi rehti hai). 1 minute pehle warning notice aata hai.</p>' +
       '<p style="font-size:12px;opacity:.75">Live Background: ON ho to Dark theme me video background chalta hai; OFF ho to plain dark background rehta hai aur video pause ho jata hai. Light theme me video kabhi nahi chalta.</p>' +
       '<button class="btn btn-primary" id="st-save-defaults">Save Defaults</button></div>' +
-      backupCardHtml() + updatesCardHtml() + dataCheckHtml();
+      backupCardHtml() + printerCardHtml() + updatesCardHtml() + dataCheckHtml();
 
     containerEl.querySelector('#st-save-business').addEventListener('click', function () {
       var name = val('st-name', containerEl).trim();
@@ -197,6 +212,57 @@
       });
       try { if (window.App && App.renderUpdateStatus) App.renderUpdateStatus(); } catch (e) { /* ignore */ }
       try { if (window.App && App._refreshUpdateState) App._refreshUpdateState(); } catch (e) { /* ignore */ }
+    })();
+    // Printer card: load the system printer list, save the Owner's
+    // pick in settings.printerName, and test-print on it. Works even
+    // with no printers installed — it says so instead of crashing.
+    (function wirePrinter() {
+      var ipc = null;
+      try { ipc = require('electron').ipcRenderer; } catch (e) { ipc = null; }
+      var sel = containerEl.querySelector('#st-printer');
+      var note = containerEl.querySelector('#st-printer-note');
+      if (!sel) return;
+      function loadPrinters() {
+        if (!ipc) { sel.innerHTML = '<option value="">Printer list nahi mil saki</option>'; return; }
+        sel.innerHTML = '<option value="">Printer dhoond rahe hain…</option>';
+        ipc.invoke('printer-list').then(function (list) {
+          var current = '';
+          try { current = (S().settings && S().settings.printerName) || ''; } catch (e) {}
+          if (!list || !list.length) {
+            sel.innerHTML = '<option value="">Koi printer nahi mila</option>';
+            // Note is left alone on purpose: it always shows the SAVED
+            // printer (if any), even when no printer is currently found
+            // — e.g. the printer is off — so the Owner can still see
+            // which printer the app will use.
+            return;
+          }
+          sel.innerHTML = '<option value="">— Printer chunein —</option>' + list.map(function (p) {
+            return '<option value="' + esc(p.name) + '"' + (p.name === current ? ' selected' : '') + '>' + esc(p.displayName || p.name) + (p.isDefault ? ' (Default)' : '') + '</option>';
+          }).join('');
+        }).catch(function () {
+          sel.innerHTML = '<option value="">Printer list nahi mil saki</option>';
+        });
+      }
+      loadPrinters();
+      containerEl.querySelector('#st-refresh-printer').addEventListener('click', loadPrinters);
+      containerEl.querySelector('#st-save-printer').addEventListener('click', function () {
+        var v = sel.value || '';
+        if (!v) { notify('Pehle printer chunein', 'warning'); return; }
+        st.settings = st.settings || {};
+        st.settings.printerName = v;
+        save();
+        notify('Printer save ho gaya — ' + v, 'success');
+        if (note) note.innerHTML = 'Current printer: <b>' + esc(v) + '</b>';
+      });
+      containerEl.querySelector('#st-test-printer').addEventListener('click', function () {
+        var current = '';
+        try { current = (S().settings && S().settings.printerName) || ''; } catch (e) {}
+        if (!current) { notify('Pehle printer chunein aur Save karein', 'warning'); return; }
+        try {
+          if (window.App && App.testPrintReceipt) { App.testPrintReceipt(); return; }
+        } catch (e) { /* fall through */ }
+        notify('Masla: Test print shuru nahi ho saka', 'error');
+      });
     })();
     containerEl.querySelector('#st-restore').addEventListener('click', function () {
       confirmDlg('Restore Latest Backup?', 'Sab se naya backup restore hoga. Current data ki pehle aik safety backup ban jayegi, phir data backup se replace ho jayega.').then(function (ok) {
