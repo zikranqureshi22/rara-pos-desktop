@@ -105,7 +105,8 @@ function emptyState() {
       address: '',
       defaultBranchId: 2,
       allowNegativeStock: false,
-      sessionTimeoutMinutes: 15
+      sessionTimeoutMinutes: 15,
+      printerName: ''
     }
   };
 }
