@@ -38,6 +38,23 @@
   </div>
 </div>
 
+<!-- Bill preview modal (v1.1.2): the bill is shown first, then printed.
+     The white 80mm card renders the same receiptHtml as printing, so the
+     preview is exactly what prints. -->
+<div id="bill-preview-overlay" class="bill-preview-overlay" hidden>
+  <div class="bill-preview-card">
+    <div class="bill-preview-head">
+      <h3>Bill Preview</h3>
+      <button id="bill-preview-x" class="btn btn-ghost" type="button" aria-label="Band Karein">×</button>
+    </div>
+    <div id="bill-preview-body" class="bill-preview-body"></div>
+    <div class="bill-preview-actions">
+      <button id="bill-preview-print" class="btn btn-primary" type="button">Print Karein</button>
+      <button id="bill-preview-close" class="btn" type="button">Band Karein</button>
+    </div>
+  </div>
+</div>
+
 <div id="app-shell" class="app-shell" hidden>
   <header class="app-header">
     <div class="header-brand">
