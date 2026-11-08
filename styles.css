@@ -268,6 +268,28 @@ body[data-theme="dark"] .warning-banner { background: #4a3800; color: #ffe082; b
 #receipt-print td, #receipt-print th { border: none; padding: 2px 0; color: #000; text-align: left; }
 #receipt-print td.r-right, #receipt-print th.r-right { text-align: right; }
 
+/* ---------- Bill preview modal (v1.1.2) ---------- */
+/* Shown automatically after a sale and from Sales History > Details.
+   The white 80mm card renders the same receiptHtml as printing, so the
+   preview is exactly what prints. z-index 120 sits above the app shell
+   (2) and login screen (100) but below the confirm dialog (150) and the
+   notice stack (200), so print notices stay visible over the modal.
+   In print media the overlay is hidden by the @media print rule above
+   (only #receipt-print prints). */
+.bill-preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.65); display: flex; align-items: flex-start; justify-content: center; padding: 28px 12px; z-index: 120; overflow-y: auto; }
+.bill-preview-overlay[hidden] { display: none !important; }
+.bill-preview-card { background: #fff; color: #000; width: 80mm; max-width: calc(100vw - 24px); border-radius: 10px; padding: 14px 14px 12px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+.bill-preview-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.bill-preview-head h3 { margin: 0; color: #000; }
+.bill-preview-body { font-family: "Courier New", monospace; font-size: 12px; line-height: 1.4; color: #000; }
+.bill-preview-body .r-center { text-align: center; }
+.bill-preview-body .r-bold { font-weight: 700; }
+.bill-preview-body .r-line { border-top: 1px dashed #000; margin: 6px 0; }
+.bill-preview-body table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.bill-preview-body td, .bill-preview-body th { border: none; padding: 2px 0; color: #000; text-align: left; }
+.bill-preview-body td.r-right, .bill-preview-body th.r-right { text-align: right; }
+.bill-preview-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
+
 /* ---------- Misc ---------- */
 .toolbar { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 14px; }
 .toolbar .field { flex: 1; min-width: 160px; }
