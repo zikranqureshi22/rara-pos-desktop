@@ -115,14 +115,80 @@ function receiptHtml(sale) {
     '<div class="r-line"></div>' +
     '<div class="r-center">Thank you for shopping at RARA!</div>';
 }
-function printReceipt(sale) {
+/* ---------------- Thermal receipt printing (v1.1.2) ----------------
+ * CSS alone cannot make the printed page match the bill length
+ * (measured: @page size:80mm auto is invalid in Blink; a square 80mm
+ * page splits a 3-item bill across 2 pages mid-bill). So the receipt
+ * height is measured here at 80mm width and the main process prints
+ * one page of exactly that height on the Owner-picked thermal printer.
+ * Anything that fails falls back to the print dialog, so printing
+ * never fully breaks. */
+function getPrintIpc() { try { return require('electron').ipcRenderer; } catch (e) { return null; } }
+function measureReceiptHeightPx() {
   const area = document.getElementById('receipt-print');
-  if (!area) { notify('Print area nahi mila', 'error'); return; }
-  area.innerHTML = receiptHtml(sale);
-  window.print();
+  if (!area) return 0;
+  // The real area is display:none, so its own height is 0. Temporarily
+  // show it off-screen (visibility:hidden keeps layout measurable
+  // without flashing on screen), measure, then restore exactly.
+  const prev = { display: area.style.display, visibility: area.style.visibility, position: area.style.position, left: area.style.left, top: area.style.top, width: area.style.width };
+  area.style.display = 'block'; area.style.visibility = 'hidden'; area.style.position = 'absolute'; area.style.left = '-9999px'; area.style.top = '0'; area.style.width = '80mm';
+  const h = area.getBoundingClientRect().height;
+  area.style.display = prev.display; area.style.visibility = prev.visibility; area.style.position = prev.position; area.style.left = prev.left; area.style.top = prev.top; area.style.width = prev.width;
+  return h;
+}
+function fallbackPrintDialog() { try { window.print(); } catch (e) { /* ignore */ } }
+async function printReceiptHtml(html) {
+  const area = document.getElementById('receipt-print');
+  if (!area) { notify('Print area nahi mila', 'error'); return false; }
+  area.innerHTML = html;
+  const printerName = (S().settings && S().settings.printerName) || '';
+  if (!printerName) {
+    notify('Printer select nahi hai — Settings → Printer me printer chunein, phir dobara print karein', 'warning');
+    fallbackPrintDialog();
+    return false;
+  }
+  // 1 CSS px = 25.4/96 mm; +6mm trailing feed so the cutter has paper.
+  const heightMicrons = Math.round((measureReceiptHeightPx() * 25.4 / 96 + 6) * 1000);
+  const ipc = getPrintIpc();
+  if (!ipc) { fallbackPrintDialog(); return false; }
+  let res = null;
+  try {
+    // A stuck printer must never hang the POS: 12s timeout, then fail.
+    res = await Promise.race([
+      ipc.invoke('print-receipt', { heightMicrons, deviceName: printerName }),
+      new Promise((resolve) => setTimeout(() => resolve({ ok: false, error: 'timeout' }), 12000))
+    ]);
+  } catch (e) { res = { ok: false, error: 'print-failed' }; }
+  if (res && res.ok) { notify('Bill print ho gaya', 'success'); return true; }
+  if (res && res.error === 'timeout') {
+    // The silent job may still come out of the printer — do NOT open
+    // the dialog as well, or the bill would print twice.
+    notify('Print ka jawab nahi mila — printer check karein, bill nikal aaye to dobara print na karein', 'error');
+    return false;
+  }
+  notify('Print nahi ho saka — print dialog se dobara koshish karein', 'error');
+  fallbackPrintDialog();
+  return false;
+}
+function printReceipt(sale) {
+  return printReceiptHtml(receiptHtml(sale));
+}
+function testPrintReceipt() {
+  const now = new Date();
+  const html = '<div class="r-center r-bold">' + esc((S().settings && S().settings.businessName) || 'RARA') + '</div>' +
+    '<div class="r-center">Fragrance / Fashions</div>' +
+    '<div class="r-line"></div>' +
+    '<div class="r-center">TEST PRINT</div>' +
+    '<div>Date: ' + esc(now.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })) + '</div>' +
+    '<div class="r-line"></div>' +
+    '<div class="r-center">Printer theek kaam kar raha hai!</div>' +
+    '<div class="r-center">Thank you for shopping at RARA!</div>';
+  return printReceiptHtml(html);
 }
 window.App.printReceipt = printReceipt;
 window.App.receiptText = receiptText;
+window.App.measureReceiptHeightPx = measureReceiptHeightPx;
+window.App.testPrintReceipt = testPrintReceipt;
 
 /* ---------------- Sale processing ---------------- */
 function processReturn(sale, returnItems, refundMethod) {
