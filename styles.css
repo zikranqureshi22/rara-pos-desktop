@@ -265,7 +265,7 @@ body[data-theme="dark"] .warning-banner { background: #4a3800; color: #ffe082; b
 }
 #receipt-print .r-center { text-align: center; }
 #receipt-print .r-bold { font-weight: 700; }
-#receipt-print .r-logo { width: 58mm; max-width: 100%; display: block; margin: 0 auto 2px; }
+#receipt-print .r-logo { width: 40mm; max-width: 100%; display: block; margin: 0 auto 2px; }
 #receipt-print .r-line { border-top: 1px dashed #000; margin: 6px 0; }
 #receipt-print table { width: 100%; border-collapse: collapse; font-size: 13px; }
 #receipt-print td, #receipt-print th { border: none; padding: 2px 0; color: #000; text-align: left; }
@@ -287,7 +287,7 @@ body[data-theme="dark"] .warning-banner { background: #4a3800; color: #ffe082; b
 .bill-preview-body { font-family: "Courier New", monospace; font-size: 13px; font-weight: 700; line-height: 1.5; color: #000; }
 .bill-preview-body .r-center { text-align: center; }
 .bill-preview-body .r-bold { font-weight: 700; }
-.bill-preview-body .r-logo { width: 58mm; max-width: 100%; display: block; margin: 0 auto 2px; }
+.bill-preview-body .r-logo { width: 40mm; max-width: 100%; display: block; margin: 0 auto 2px; }
 .bill-preview-body .r-line { border-top: 1px dashed #000; margin: 6px 0; }
 .bill-preview-body table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .bill-preview-body td, .bill-preview-body th { border: none; padding: 2px 0; color: #000; text-align: left; }

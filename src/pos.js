@@ -73,7 +73,8 @@ function receiptText(sale) {
   const branch = (DB.branchById ? DB.branchById(sale.branchId) : (st.branches || []).find((b) => String(b.id) === String(sale.branchId))) || null;
   const lines = [];
   lines.push((st.settings.businessName || 'RARA') + ' — Fragrance / Fashions');
-  lines.push('Branch: ' + (sale.branchName || (branch && branch.name) || window.App.branchName(sale.branchId)));
+  // v1.1.5: same rule as the printed bill — only the branch's address
+  // line, no branch name.
   if (branch && branch.address) lines.push(branch.address);
   lines.push('Bill No: ' + saleBillNo(sale));
   lines.push('Date: ' + fmtDate(saleDate(sale)));
@@ -98,12 +99,15 @@ function receiptText(sale) {
 function receiptHtml(sale) {
   const st = S();
   const branch = (DB.branchById ? DB.branchById(sale.branchId) : (st.branches || []).find((b) => String(b.id) === String(sale.branchId))) || null;
-  const branchName = sale.branchName || (branch && branch.name) || window.App.branchName(sale.branchId);
   const branchAddr = branch ? (branch.address || '') : '';
-  // v1.1.3: the exact supplied RARA logo on top, then the subtitle, then
-  // the sale's own branch name + address (dynamic per branch — never a
-  // hardcoded branch). Without the logo module, the business-name text
-  // line is used instead so the header is never blank.
+  // v1.1.5: the exact supplied RARA logo on top, then the subtitle, then
+  // ONLY the sale branch's address line — no branch name. The address is
+  // branch-specific (Outlet: "RARA Outlet Near Lady Park, Railway bannu
+  // city"; Township: "RARA Outlet 2, Khan Plaza, Link Road Chowk,
+  // Township, Bannu"), set in seed.json + a one-time migration in
+  // DB.load(), so the old "RARA Outlet Bannu City Railway Road" name
+  // never appears on a bill again. Without the logo module, the
+  // business-name text line is used instead so the header is never blank.
   const logoHtml = RECEIPT_LOGO
     ? '<div class="r-center"><img class="r-logo" src="' + RECEIPT_LOGO + '" alt="RARA"></div>'
     : '<div class="r-center r-bold">' + esc(st.settings.businessName || 'RARA') + '</div>';
@@ -114,7 +118,6 @@ function receiptHtml(sale) {
   return '' +
     logoHtml +
     '<div class="r-center">Fragrance / Fashions</div>' +
-    '<div class="r-center">' + esc(branchName) + '</div>' +
     (branchAddr ? '<div class="r-center">' + esc(branchAddr) + '</div>' : '') +
     '<div class="r-line"></div>' +
     '<div>Bill No: <b>' + esc(saleBillNo(sale)) + '</b></div>' +
@@ -335,7 +338,7 @@ function renderPos(container) {
   const left = el('<div class="card"></div>');
   const searchRow = el('<div class="pos-search-row"></div>');
   const searchInput = el('<input class="input" type="text" placeholder="Search — naam / SKU / barcode">');
-  const barcodeInput = el('<input class="input" type="text" placeholder="Barcode scan karein aur Enter dabayein" style="max-width:260px">');
+  const barcodeInput = el('<input id="barcode-input" class="input" type="text" placeholder="Barcode scan karein aur Enter dabayein" style="max-width:260px">');
   searchRow.appendChild(searchInput);
   searchRow.appendChild(barcodeInput);
   left.appendChild(searchRow);
@@ -378,9 +381,14 @@ function renderPos(container) {
     // O(1) barcode/SKU lookup from the DB index (item 2).
     const p = DB.productByBarcodeOrSku ? DB.productByBarcodeOrSku(code)
       : (st.products || []).find((x) => String(x.barcode || '') === code || String(x.sku || '') === code);
-    if (!p) { notify('Barcode nahi mila: ' + code, 'error'); return; }
+    if (!p) { notify('Product nahi mila: ' + code, 'error'); barcodeInput.focus(); return; }
     if (addToCart(p, 1)) { notify(p.name + ' add ho gaya', 'success'); refreshPos(); }
     else refreshPos();
+    // v1.1.5: stay ready for the next scan — re-focus after every scan
+    // so a USB scanner (keyboard-wedge: types the code + Enter) can scan
+    // product after product with no click or manual search. refreshPos()
+    // only redraws the grid + cart, so this input is never destroyed.
+    barcodeInput.focus();
   });
 
   /* ---- Cart panel ---- */
@@ -480,6 +488,11 @@ function renderPos(container) {
   right.appendChild(completeBtn);
   layout.appendChild(right);
   container.appendChild(layout);
+  // v1.1.5: the scanner input is auto-focused when the Sale screen
+  // opens, so a connected scanner works plug-and-play immediately.
+  // NOTE: this must run AFTER container.appendChild(layout) — focus()
+  // on an element that is not in the document yet is a silent no-op.
+  try { barcodeInput.focus(); } catch (e) { /* focus is best-effort */ }
 }
 
 function completeSale(container) {
