@@ -1,5 +1,5 @@
 {
-  "_note": "Seeded from the live Muse POS database 2026-11-06 (read-only). B4 Berry purchasePrice is the real user-entered cost Rs 1,254 (other products 0 until the Owner enters real costs — profit is overstated until then). Transfers (10) and stock movements (30) carried over as history. appUsers: only the RARA Township franchise login (username 'township', default PIN 1234) is seeded — Owner and cashier set new PINs on first launch. Separate system from Muse POS, no sync.",
+  "_note": "Seeded from the live Muse POS database 2026-11-06 (read-only). B4 Berry purchasePrice is the real user-entered cost Rs 1,254 (other products 0 until the Owner enters real costs — profit is overstated until then). Transfers (10) and stock movements (30) carried over as history. appUsers: the RARA Township franchise login (username 'township', default PIN 1234) and the RARA Outlet salesman login (username 'salesman', default PIN 1234) are seeded — Owner and cashier set new PINs on first launch. Bill location is branch-specific: branch 2 address is 'RARA Outlet Near Lady Park, Railway bannu city', branch 3 address is 'RARA Outlet 2, Khan Plaza, Link Road Chowk, Township, Bannu' (the receipt prints only the address line, no branch name). Separate system from Muse POS, no sync.",
   "products": [
     {
       "id": 1,
@@ -213,7 +213,7 @@
       "type": "outlet",
       "ownerName": "Zikran Zahid",
       "phone": "03368347648",
-      "address": "rara outlet near laddy park railwayroad bannu city"
+      "address": "RARA Outlet Near Lady Park, Railway bannu city"
     },
     {
       "id": 3,
@@ -221,7 +221,7 @@
       "type": "franchise",
       "ownerName": "shahid khan",
       "phone": "0337-59 65 366",
-      "address": "RARA Outlet main linkroad chowk Bannu Township"
+      "address": "RARA Outlet 2, Khan Plaza, Link Road Chowk, Township, Bannu"
     }
   ],
   "sales": [
@@ -1096,6 +1096,16 @@
       "role": "Franchise",
       "branchId": 3,
       "branchName": "RARA Township",
+      "isActive": true
+    },
+    {
+      "id": 2,
+      "name": "Outlet Salesman",
+      "username": "salesman",
+      "pinHash": "9b2680285f0d118e9cd5c057a3f292083b655b9c218e7cc39896da4426cac3f7",
+      "role": "Salesman",
+      "branchId": 2,
+      "branchName": "RARA Outlet BANNU CITY Railwyroad",
       "isActive": true
     }
   ],

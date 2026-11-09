@@ -99,6 +99,10 @@ function emptyState() {
     stockMovements: [],
     cashSessions: [],
     appUsers: [],
+    // PIN brute-force protection (v1.1.5): per-username
+    // { attempts, lockedUntil } — persisted here so restarting the app
+    // does NOT reset the counter or the lock.
+    loginSecurity: {},
     settings: {
       businessName: 'RARA Perfumes & Fashion',
       phone: '',
@@ -326,6 +330,45 @@ const DB = {
         try { this.save(); } catch (e) { /* migration runs again next load */ }
       }
     }
+    // v1.1.5 one-time migration: existing installs were seeded before the
+    // RARA Outlet salesman login existed, so seed.json alone never
+    // reaches them. Add the login once (username 'salesman', default PIN
+    // 1234, Salesman, branch 2) and remember it with a flag — the flag
+    // stops the login coming back if the Owner later deletes or disables
+    // it on purpose. Fresh installs get the same login from seed.json.
+    if (!this.state.settings.salesmanLoginSeeded) {
+      this.state.settings.salesmanLoginSeeded = true;
+      const hasSalesman = (this.state.appUsers || []).some((u) => String(u.username || '').toLowerCase() === 'salesman');
+      const outletBranch = (this.state.branches || []).find((b) => String(b.id) === '2');
+      if (!hasSalesman && outletBranch) {
+        this.state.appUsers = this.state.appUsers || [];
+        this.state.appUsers.push({
+          id: this.nextId('appUsers'),
+          name: 'Outlet Salesman', username: 'salesman',
+          pinHash: this.hashPin('1234'),
+          role: 'Salesman', branchId: outletBranch.id, branchName: outletBranch.name,
+          isActive: true,
+        });
+        try { this.save(); } catch (e) { /* migration runs again next load */ }
+      }
+    }
+    // v1.1.5 one-time migration: the bill location is branch-specific —
+    // the receipt prints ONLY the sale branch's address line (no branch
+    // name). Set the Outlet (branch 2) and Township (branch 3) addresses
+    // to the Owner's exact texts. Branch 1 (Main Warehouse) keeps its
+    // existing address. Guarded by a flag so an Owner edit afterwards is
+    // never overwritten. Fresh installs get the same addresses from
+    // seed.json.
+    if (!this.state.settings.billAddressesSeeded) {
+      this.state.settings.billAddressesSeeded = true;
+      const setAddr = (id, address) => {
+        const b = (this.state.branches || []).find((x) => String(x.id) === String(id));
+        if (b) b.address = address;
+      };
+      setAddr(2, 'RARA Outlet Near Lady Park, Railway bannu city');
+      setAddr(3, 'RARA Outlet 2, Khan Plaza, Link Road Chowk, Township, Bannu');
+      try { this.save(); } catch (e) { /* migration runs again next load */ }
+    }
     this.buildIndexes();
     return this.state;
   },
@@ -368,6 +411,62 @@ const DB = {
   checkPin(user, pin) {
     if (!user || !user.pinHash) return false;
     return user.pinHash === this.hashPin(pin);
+  },
+
+  /* ---------- PIN brute-force protection (v1.1.5) ---------- */
+  // After LOCKOUT_AFTER consecutive wrong PINs for one username, that
+  // login is locked for LOCKOUT_MINUTES minutes. The counter and the
+  // lock live in state.loginSecurity (the local data file), so restarting
+  // the app does NOT reset them. A successful login clears the counter.
+  // There is NO reset path except waiting out the lock (or a successful
+  // Owner login resetting that Owner's own counter) — a locked-out Owner
+  // cannot be unlocked by any non-Owner user.
+  LOCKOUT_AFTER: 5,
+  LOCKOUT_MINUTES: 15,
+  _loginSecurity() {
+    if (!this.state.loginSecurity || typeof this.state.loginSecurity !== 'object') this.state.loginSecurity = {};
+    return this.state.loginSecurity;
+  },
+  _loginSecKey(username) { return String(username == null ? '' : username).trim().toLowerCase(); },
+  // { locked: bool, attempts: n, remainingMs, remainingMinutes }
+  isLoginLocked(username) {
+    const sec = this._loginSecurity();
+    const rec = sec[this._loginSecKey(username)];
+    if (!rec) return { locked: false, attempts: 0, remainingMs: 0, remainingMinutes: 0 };
+    if (rec.lockedUntil && Date.now() >= rec.lockedUntil) {
+      delete sec[this._loginSecKey(username)];
+      try { this.save(); } catch (e) { /* lock clears on next load */ }
+      return { locked: false, attempts: 0, remainingMs: 0, remainingMinutes: 0 };
+    }
+    if (rec.lockedUntil) {
+      const remainingMs = rec.lockedUntil - Date.now();
+      return { locked: true, attempts: rec.attempts || 0, remainingMs: remainingMs, remainingMinutes: Math.max(1, Math.ceil(remainingMs / 60000)) };
+    }
+    return { locked: false, attempts: rec.attempts || 0, remainingMs: 0, remainingMinutes: 0 };
+  },
+  // Call after a wrong PIN. Returns { locked: bool, attempts: n }.
+  recordFailedLogin(username) {
+    const sec = this._loginSecurity();
+    const key = this._loginSecKey(username);
+    const rec = sec[key] || { attempts: 0, lockedUntil: null };
+    rec.attempts = (rec.attempts || 0) + 1;
+    let locked = false;
+    if (rec.attempts >= this.LOCKOUT_AFTER) {
+      rec.lockedUntil = Date.now() + this.LOCKOUT_MINUTES * 60 * 1000;
+      locked = true;
+    }
+    sec[key] = rec;
+    try { this.save(); } catch (e) { /* counter lives in memory until the next save */ }
+    return { locked: locked, attempts: rec.attempts };
+  },
+  // Call after a successful login — resets the counter to zero.
+  recordSuccessfulLogin(username) {
+    const sec = this._loginSecurity();
+    const key = this._loginSecKey(username);
+    if (sec[key]) {
+      delete sec[key];
+      try { this.save(); } catch (e) { /* cleared on next load */ }
+    }
   },
 
   /* ---------- uniqueness (data layer — never UI-only) ---------- */
