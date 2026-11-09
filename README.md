@@ -40,6 +40,12 @@ The app has a warm dark theme inspired by the RARA brand video: a short looping 
 - **Dark / Light toggle** (header button) still works. The video only plays in the **Dark** theme; the Light theme is a clean warm off-white with the video hidden and paused.
 - **Settings > Defaults > Live Background (video)** turns the video on/off (default ON). When OFF the video is hidden **and paused** and the app falls back to a plain dark background. The choice is saved in Settings, so it survives restarts.
 
+## What's new in v1.1.3
+
+- **Bill redesign:** the exact supplied black RARA logo prints at the top of every bill (and in the bill preview), followed by "Fragrance / Fashions" and the sale's own branch name + address. The receipt is now **72mm wide** (was 80mm) with a **bolder, slightly larger font**, so bills read taller. Measured-height printing from v1.1.2 is unchanged — each bill still prints exactly its own length.
+- **RARA Township franchise login:** username `township`, default PIN **1234** (Owner: change it in Logins). It sees only its own branch: sell + print, own-branch stock, own sales history, and its own **franchise dashboard** — today's + all-time sales, sales by product, **profit** (revenue minus purchase cost), expenses, and stock (received / sold / returned / adjustments / current). It cannot see other branches, suppliers, purchases, logins, Settings, or change prices. Profit is shown to this login at the Owner's explicit instruction.
+- Existing installs get the Township login automatically on first launch of v1.1.3 (one-time migration; if the Owner deletes it, it does not come back).
+
 ## Releasing a new version (for the developer)
 
 1. Bump `version` in `package.json` (e.g. `1.1.0` → `1.2.0`).
@@ -60,7 +66,7 @@ There is **no default PIN**. On first launch the app asks you to create the Owne
 ## Honest limits — read before relying on this
 
 - **Separate system from the Muse POS. No sync.** Sales or stock changes made here do not appear in the Muse POS, and vice versa. Pick one system per outlet and stick to it.
-- **PINs were not migrated.** The Owner and staff logins from the Muse POS do not carry over. Create them again on first launch (Owner) and in Settings > Users (staff).
+- **PINs were not migrated — except the Township franchise login.** The Owner and staff logins from the Muse POS do not carry over. Create them again on first launch (Owner) and in Settings > Users (staff). The RARA Township franchise login (`township`, default PIN 1234) IS seeded in v1.1.3 — the Owner should change its PIN in Logins.
 - **Purchase prices are 0 in the seed data.** Profit figures are overstated until the Owner enters the real purchase price for each product (Products > Edit). The seed file says this on its `_note` line.
-- **Thermal printing uses browser print CSS.** The 80mm bill is printed through the normal print dialog. Test it on the real thermal printer before relying on it — paper size and margins vary by printer driver.
+- **Thermal printing (v1.1.2+):** the app measures each bill and prints exactly that length on the Owner-picked thermal printer (Settings > Printer). If no printer is picked, or printing fails, it falls back to the normal print dialog. Test it on the real thermal printer before relying on it — paper size and margins vary by printer driver.
 - **Unsigned installer shows a SmartScreen warning.** The `.exe` is not code-signed, so Windows SmartScreen will warn on first install. See `INSTALL.md` for the safe way past it ("More info" > "Run anyway"). This is expected for an unsigned app, not a sign the file is unsafe — but only ever install the `.exe` downloaded from this project's own GitHub Actions run.
