@@ -175,7 +175,7 @@ function setupAutoUpdater() {
 // (measured: @page size:80mm auto is invalid in Blink, and a square 80mm
 // page splits a 3-item bill across 2 pages mid-bill). So the renderer
 // measures the rendered receipt height and the main process prints it with
-// Electron's pageSize option — 80mm wide, content height, one copy, no
+// Electron's pageSize option — 72mm wide (v1.1.3), content height, one copy, no
 // margins. The token/auto-update code above is untouched.
 // ---------------------------------------------------------------------------
 ipcMain.handle('printer-list', async () => {
@@ -195,7 +195,7 @@ ipcMain.handle('print-receipt', async (_e, opts) => {
     await mainWin.webContents.print({
       silent: true,
       deviceName,
-      pageSize: { width: 80000, height: Math.round(height) },
+      pageSize: { width: 72000, height: Math.round(height) },
       margins: { marginType: 'none' },
       printBackground: false,
       copies: 1

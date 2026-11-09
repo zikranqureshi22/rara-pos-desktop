@@ -8,6 +8,12 @@
  * (project root), not this file — fall back to './src/db.js'. See ui.js. */
 const DB = (function () { try { return require('./db.js'); } catch (e) { return require('./src/db.js'); } })();
 DB.load();
+/* RARA receipt logo (v1.1.3): the EXACT supplied black RARA serif logo as
+ * a base64 data URL (src/receipt-logo.js) — prints offline, no file
+ * read at print time. Missing module = no logo; the business-name text
+ * line is used instead so the bill never loses its header. */
+let RECEIPT_LOGO = '';
+try { RECEIPT_LOGO = require('./receipt-logo.js'); } catch (e1) { try { RECEIPT_LOGO = require('./src/receipt-logo.js'); } catch (e2) { RECEIPT_LOGO = ''; } }
 const state = DB.state;
 if (window.App) window.App.state = DB.state;
 
@@ -64,9 +70,11 @@ function nextBillNo() {
 /* ---------------- Receipt ---------------- */
 function receiptText(sale) {
   const st = S();
+  const branch = (DB.branchById ? DB.branchById(sale.branchId) : (st.branches || []).find((b) => String(b.id) === String(sale.branchId))) || null;
   const lines = [];
   lines.push((st.settings.businessName || 'RARA') + ' — Fragrance / Fashions');
-  lines.push('Branch: ' + (sale.branchName || window.App.branchName(sale.branchId)));
+  lines.push('Branch: ' + (sale.branchName || (branch && branch.name) || window.App.branchName(sale.branchId)));
+  if (branch && branch.address) lines.push(branch.address);
   lines.push('Bill No: ' + saleBillNo(sale));
   lines.push('Date: ' + fmtDate(saleDate(sale)));
   lines.push('Cashier: ' + (sale.cashier || ''));
@@ -89,14 +97,25 @@ function receiptText(sale) {
 }
 function receiptHtml(sale) {
   const st = S();
+  const branch = (DB.branchById ? DB.branchById(sale.branchId) : (st.branches || []).find((b) => String(b.id) === String(sale.branchId))) || null;
+  const branchName = sale.branchName || (branch && branch.name) || window.App.branchName(sale.branchId);
+  const branchAddr = branch ? (branch.address || '') : '';
+  // v1.1.3: the exact supplied RARA logo on top, then the subtitle, then
+  // the sale's own branch name + address (dynamic per branch — never a
+  // hardcoded branch). Without the logo module, the business-name text
+  // line is used instead so the header is never blank.
+  const logoHtml = RECEIPT_LOGO
+    ? '<div class="r-center"><img class="r-logo" src="' + RECEIPT_LOGO + '" alt="RARA"></div>'
+    : '<div class="r-center r-bold">' + esc(st.settings.businessName || 'RARA') + '</div>';
   const rows = (sale.items || []).map((it) =>
-    '<tr><td>' + esc(itemName(it)) + '<br><small>' + itemQty(it) + ' x ' + money(itemPrice(it)) + (itemDiscount(it) ? ' (Disc -' + money(itemDiscount(it)) + ')' : '') + '</small></td>' +
+    '<tr><td style="white-space:nowrap">' + esc(itemName(it)) + '<br><small>' + itemQty(it) + ' x ' + money(itemPrice(it)) + (itemDiscount(it) ? ' (Disc -' + money(itemDiscount(it)) + ')' : '') + '</small></td>' +
     '<td class="r-right">' + money(itemLineTotal(it)) + '</td></tr>'
   ).join('');
   return '' +
-    '<div class="r-center r-bold">' + esc(st.settings.businessName || 'RARA') + '</div>' +
+    logoHtml +
     '<div class="r-center">Fragrance / Fashions</div>' +
-    '<div class="r-center">' + esc(sale.branchName || window.App.branchName(sale.branchId)) + '</div>' +
+    '<div class="r-center">' + esc(branchName) + '</div>' +
+    (branchAddr ? '<div class="r-center">' + esc(branchAddr) + '</div>' : '') +
     '<div class="r-line"></div>' +
     '<div>Bill No: <b>' + esc(saleBillNo(sale)) + '</b></div>' +
     '<div>Date: ' + esc(fmtDate(saleDate(sale))) + '</div>' +
@@ -119,7 +138,7 @@ function receiptHtml(sale) {
  * CSS alone cannot make the printed page match the bill length
  * (measured: @page size:80mm auto is invalid in Blink; a square 80mm
  * page splits a 3-item bill across 2 pages mid-bill). So the receipt
- * height is measured here at 80mm width and the main process prints
+ * height is measured here at 72mm width (v1.1.3) and the main process prints
  * one page of exactly that height on the Owner-picked thermal printer.
  * Anything that fails falls back to the print dialog, so printing
  * never fully breaks. */
@@ -131,7 +150,7 @@ function measureReceiptHeightPx() {
   // show it off-screen (visibility:hidden keeps layout measurable
   // without flashing on screen), measure, then restore exactly.
   const prev = { display: area.style.display, visibility: area.style.visibility, position: area.style.position, left: area.style.left, top: area.style.top, width: area.style.width };
-  area.style.display = 'block'; area.style.visibility = 'hidden'; area.style.position = 'absolute'; area.style.left = '-9999px'; area.style.top = '0'; area.style.width = '80mm';
+  area.style.display = 'block'; area.style.visibility = 'hidden'; area.style.position = 'absolute'; area.style.left = '-9999px'; area.style.top = '0'; area.style.width = '72mm';
   const h = area.getBoundingClientRect().height;
   area.style.display = prev.display; area.style.visibility = prev.visibility; area.style.position = prev.position; area.style.left = prev.left; area.style.top = prev.top; area.style.width = prev.width;
   return h;
@@ -175,7 +194,10 @@ function printReceipt(sale) {
 }
 function testPrintReceipt() {
   const now = new Date();
-  const html = '<div class="r-center r-bold">' + esc((S().settings && S().settings.businessName) || 'RARA') + '</div>' +
+  const logoHtml = RECEIPT_LOGO
+    ? '<div class="r-center"><img class="r-logo" src="' + RECEIPT_LOGO + '" alt="RARA"></div>'
+    : '<div class="r-center r-bold">' + esc((S().settings && S().settings.businessName) || 'RARA') + '</div>';
+  const html = logoHtml +
     '<div class="r-center">Fragrance / Fashions</div>' +
     '<div class="r-line"></div>' +
     '<div class="r-center">TEST PRINT</div>' +
