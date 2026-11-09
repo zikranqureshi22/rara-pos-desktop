@@ -66,7 +66,11 @@ function renderProducts(container) {
       tableWrap.appendChild(el('<div class="card"><p class="muted">Koi product nahi mila.</p></div>'));
       return;
     }
+    // Franchise "Cost" column (v1.1.4): the franchisee's own rate =
+    // franchisePrice (what the Owner charges him per unit). The Owner's
+    // purchasePrice stays Owner-only (canSeeCost) and is never shown here.
     const card = el('<div class="card"><div class="table-wrap"><table><thead><tr><th>Photo</th><th>Name</th><th>SKU</th><th>Barcode</th><th>Price</th>' +
+      (isFranchise ? '<th>Cost</th>' : '') +
       (canSeeCost ? '<th>Purchase Price</th>' : '') +
       '<th>Stock' + (isFranchise ? ' (RARA Township)' : ' (Total)') + '</th>' + (isFranchise ? '' : '<th>Per Branch</th>') + '<th>Actions</th></tr></thead><tbody></tbody></table></div></div>');
     const tbody = card.querySelector('tbody');
@@ -85,6 +89,7 @@ function renderProducts(container) {
         '<td><b>' + esc(p.name || '') + '</b><br><small class="muted">' + esc([p.size, p.colour || p.color, p.brand].filter(Boolean).join(' • ')) + '</small></td>' +
         '<td>' + esc(p.sku || '') + '</td><td>' + esc(p.barcode || '') + '</td>' +
         '<td>' + money(p.price) + '</td>' +
+        (isFranchise ? '<td>' + money(p.franchisePrice) + '</td>' : '') +
         (canSeeCost ? '<td>' + money(p.purchasePrice) + '</td>' : '') +
         '<td>' + total + ' ' + stockBadge + '</td>' +
         (isFranchise ? '' : '<td><small>' + perBranch + '</small></td>') + '<td></td>';

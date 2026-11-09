@@ -1,8 +1,18 @@
-/* RARA POS — Franchise dashboard (v1.1.3).
+/* RARA POS — Franchise dashboard (v1.1.4).
  * Own-branch ONLY, for the Franchise role (RARA Township, branch 3):
  * total sales (today + all-time), sales by product (qty + amount),
- * PROFIT (revenue minus purchase cost, per-product and total), expenses,
- * and stock (received / sold / returned / adjustments / current).
+ * PROFIT (revenue minus the FRANCHISEE's cost, per-product and total),
+ * expenses, and stock (received / sold / returned / adjustments / current).
+ * Plus a "Products & Cost" table (v1.1.4) that is ALWAYS visible, even
+ * with zero sales: sale price, cost per unit and profit per unit for
+ * every product.
+ *
+ * The franchisee's cost per unit is product.franchisePrice — the price
+ * the Owner charges the franchise per unit. The Owner's own purchase
+ * cost (purchasePrice) is NEVER shown to this role: the sales/profit
+ * math and the cost table all use franchisePrice. If a product's
+ * franchisePrice is 0, cost reads Rs 0 and profit is overstated until
+ * the Owner sets it (Products > Edit > Franchise Price).
  *
  * Profit is visible here at the Owner's EXPLICIT instruction (v1.1.3) —
  * showing it necessarily reveals margins; that is the Owner's call.
@@ -90,7 +100,9 @@
     var todayTotal = todaySales.reduce(function (a, s) { return a + netSaleTotal(s); }, 0);
     var allTotal = ownSales.reduce(function (a, s) { return a + netSaleTotal(s); }, 0);
 
-    // ---- Sales by product + profit (revenue - purchase cost) ----
+    // ---- Sales by product + profit (revenue - franchise cost) ----
+    // The franchisee's cost is franchisePrice (what the Owner charges
+    // the franchise per unit) — NEVER the Owner's purchasePrice.
     var byProduct = {};
     var costZero = false;
     ownSales.forEach(function (s) {
@@ -98,12 +110,13 @@
         var prod = it.productId != null ? prodById(it.productId) : null;
         var name = it.name || it.productName || (prod && prod.name) || 'Product';
         var key = it.productId != null ? String(it.productId) : name;
-        if (!byProduct[key]) byProduct[key] = { name: name, qty: 0, revenue: 0, cost: 0, profit: 0 };
+        if (!byProduct[key]) byProduct[key] = { name: name, qty: 0, unitCost: 0, revenue: 0, cost: 0, profit: 0 };
         var netQ = itemQty(it) - returnedQty(s, it.productId);
-        var unitCost = prod ? (Number(prod.purchasePrice) || 0) : 0;
+        var unitCost = prod ? (Number(prod.franchisePrice) || 0) : 0;
         if (!unitCost && netQ > 0) costZero = true;
         var rev = netQ * itemPrice(it);
         var cst = netQ * unitCost;
+        byProduct[key].unitCost = unitCost;
         byProduct[key].qty += netQ;
         byProduct[key].revenue += rev;
         byProduct[key].cost += cst;
@@ -151,16 +164,35 @@
     var cards = '';
     cards += card("Aaj ki Sales", esc(money(todayTotal)), todaySales.length + ' order(s) aaj');
     cards += card('Total Sales (sab)', esc(money(allTotal)), ownSales.length + ' order(s) — sirf is branch ki');
-    cards += card('Total Profit', esc(money(totalProfit)), costZero ? 'Note: kuch products ki cost 0 hai — profit zyada dikh sakta hai' : 'revenue minus cost');
+    cards += card('Total Profit', esc(money(totalProfit)), costZero ? 'Note: kuch products ki cost 0 hai — profit zyada dikh sakta hai' : 'revenue minus franchise cost');
     cards += card('Aaj ke Expenses', esc(money(expensesToday)), 'Total expenses: ' + esc(money(expensesTotal)));
     cards += card('Total Items Sold', String(totalSoldQty), products.length + ' products');
 
+    // ---- Products & Cost (v1.1.4) — ALWAYS visible, even with zero
+    // sales: the franchisee's per-unit cost is franchisePrice, i.e. what
+    // the Owner charges the franchise per unit ("ye product mujhe kitne
+    // per mila"). Profit per unit = sale price − franchisePrice.
+    var costRows = products.map(function (p) {
+      var fPrice = Number(p.franchisePrice) || 0;
+      var sPrice = Number(p.price) || 0;
+      return {
+        name: p.name, salePrice: sPrice, unitCost: fPrice,
+        profitUnit: sPrice - fPrice, stock: branchStockOf(p, branchId),
+      };
+    });
+    var anyCostZero = products.some(function (p) { return !(Number(p.franchisePrice) > 0); });
+    var costHtml = '<table class="tbl"><thead><tr><th>Product</th><th>Sale Price</th><th>Cost per unit</th><th>Profit per unit</th><th>Current Stock</th></tr></thead><tbody>' +
+      costRows.map(function (r) {
+        return '<tr><td>' + esc(r.name) + '</td><td>' + esc(money(r.salePrice)) + '</td><td>' + esc(money(r.unitCost)) + '</td><td><b>' + esc(money(r.profitUnit)) + '</b></td><td><b>' + r.stock + '</b></td></tr>';
+      }).join('') + '</tbody></table>' +
+      (anyCostZero ? '<p class="muted" style="margin-top:8px">Note: jin products ki Cost Rs 0 hai, unki Franchise Price Owner ne abhi set nahi ki — Products &gt; Edit &gt; Franchise Price se set karwayein, warna cost 0 aur profit zyada dikhega.</p>' : '');
+
     var byProductHtml = byProductList.length
-      ? '<table class="tbl"><thead><tr><th>Product</th><th>Qty Sold</th><th>Revenue</th><th>Cost</th><th>Profit</th></tr></thead><tbody>' +
+      ? '<table class="tbl"><thead><tr><th>Product</th><th>Qty Sold</th><th>Unit Cost</th><th>Revenue</th><th>Cost</th><th>Profit</th></tr></thead><tbody>' +
         byProductList.map(function (r) {
-          return '<tr><td>' + esc(r.name) + '</td><td>' + r.qty + '</td><td>' + esc(money(r.revenue)) + '</td><td>' + esc(money(r.cost)) + '</td><td><b>' + esc(money(r.profit)) + '</b></td></tr>';
+          return '<tr><td>' + esc(r.name) + '</td><td>' + r.qty + '</td><td>' + esc(money(r.unitCost)) + '</td><td>' + esc(money(r.revenue)) + '</td><td>' + esc(money(r.cost)) + '</td><td><b>' + esc(money(r.profit)) + '</b></td></tr>';
         }).join('') +
-        '<tr><td><b>Total</b></td><td><b>' + totalSoldQty + '</b></td><td><b>' + esc(money(allTotal)) + '</b></td><td><b>' + esc(money(byProductList.reduce(function (a, r) { return a + r.cost; }, 0))) + '</b></td><td><b>' + esc(money(totalProfit)) + '</b></td></tr>' +
+        '<tr><td><b>Total</b></td><td><b>' + totalSoldQty + '</b></td><td></td><td><b>' + esc(money(allTotal)) + '</b></td><td><b>' + esc(money(byProductList.reduce(function (a, r) { return a + r.cost; }, 0))) + '</b></td><td><b>' + esc(money(totalProfit)) + '</b></td></tr>' +
         '</tbody></table>'
       : '<p>Abhi koi sale nahi hai.</p>';
 
@@ -196,7 +228,8 @@
       '<div class="btn-row" style="margin-bottom:12px"><button type="button" class="btn btn-primary" id="fr-go-pos">Sale Karein</button>' +
       '<button type="button" class="btn" id="fr-go-sales">Sales History</button></div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:12px 0">' + cards + '</div>' +
-      '<div class="card"><h3>Sales by Product + Profit</h3>' + byProductHtml + '</div>' +
+      '<div class="card"><h3>Products &amp; Cost — har product kitne per mila</h3>' + costHtml + '</div>' +
+      '<div class="card" style="margin-top:12px"><h3>Sales by Product + Profit</h3>' + byProductHtml + '</div>' +
       '<div class="card" style="margin-top:12px"><h3>Stock — Received / Sold / Current</h3>' + stockHtml + '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">' +
       '<div class="card"><h3>Expenses (is branch)</h3>' + expensesHtml + '</div>' +

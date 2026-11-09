@@ -55,7 +55,10 @@ function renderStock(container) {
       tableWrap.appendChild(el('<div class="card"><p class="muted">Koi product nahi hai — pehle Products se add karein.</p></div>'));
       return;
     }
-    const card = el('<div class="card"><h2>Stock — ' + esc(window.App.branchName(viewBranch)) + '</h2><div class="table-wrap"><table><thead><tr><th>Product</th><th>SKU</th><th>Is Branch</th>' + (isFranchise ? '' : '<th>Total (Sab Branches)</th>') + '<th>Status</th></tr></thead><tbody></tbody></table></div></div>');
+    // Franchise "Rate" column (v1.1.4): the franchisee's own rate =
+    // franchisePrice (what the Owner charges him per unit). The Owner's
+    // purchasePrice is never shown on this screen to any role.
+    const card = el('<div class="card"><h2>Stock — ' + esc(window.App.branchName(viewBranch)) + '</h2><div class="table-wrap"><table><thead><tr><th>Product</th><th>SKU</th>' + (isFranchise ? '<th>Rate</th>' : '') + '<th>Is Branch</th>' + (isFranchise ? '' : '<th>Total (Sab Branches)</th>') + '<th>Status</th></tr></thead><tbody></tbody></table></div></div>');
     const tbody = card.querySelector('tbody');
     products.forEach((p) => {
       const qty = window.App.stockOf(p, viewBranch);
@@ -66,6 +69,7 @@ function renderStock(container) {
         : '<span class="badge badge-green">OK</span>';
       const tr = document.createElement('tr');
       tr.innerHTML = '<td><b>' + esc(p.name || '') + '</b></td><td>' + esc(p.sku || '') + '</td>' +
+        (isFranchise ? '<td>' + money(p.franchisePrice) + '</td>' : '') +
         '<td><b>' + qty + '</b></td>' + (isFranchise ? '' : '<td>' + total + '</td>') + '<td>' + badge + '</td>';
       tbody.appendChild(tr);
     });
