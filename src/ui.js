@@ -105,7 +105,16 @@ const NAV = [
   // Franchise dashboard (v1.1.3): own-branch only — sales, profit,
   // expenses and stock for the franchise's own branch. The generic
   // dashboard shows every branch, so Franchise never gets it.
-  { id: 'franchise', label: 'Dashboard', action: 'franchise-dashboard' },
+  // roles (v1.1.5 item 1): this item shows ONLY for the Franchise role —
+  // can() alone returns true for the Owner for every action, so without
+  // the roles check the Owner would see two "Dashboard" items.
+  { id: 'franchise', label: 'Dashboard', action: 'franchise-dashboard', roles: ['Franchise'] },
+  // Salesman dashboard (v1.1.5): RARA Outlet only — today's sales,
+  // products sold, payment received, returns. No cost/profit anywhere.
+  // Same roles rule: ONLY for the Salesman role, so the Owner sees
+  // exactly ONE Dashboard (the generic one) and the Salesman sees
+  // exactly one (his own).
+  { id: 'salesman', label: 'Dashboard', action: 'salesman-dashboard', roles: ['Salesman'] },
   { id: 'pos', label: 'Sale', action: 'sale' },
   { id: 'products', label: 'Products', action: 'products' },
   { id: 'stock', label: 'Stock', action: 'stock' },
@@ -402,6 +411,16 @@ const App = {
       // (those stay OWNER_ONLY / Owner-or-Manager in their screens).
       return ['franchise-dashboard', 'sale', 'return', 'products', 'stock', 'sales'].indexOf(action) !== -1;
     }
+    if (role === 'Salesman') {
+      // Salesman (v1.1.5): RARA Outlet only — own salesman dashboard,
+      // sale + return, own-branch stock, own sales history. NO generic
+      // dashboard (all branches), NO franchise dashboard, and NO cost /
+      // profit anywhere (canSeeCost stays Owner-only; the Products and
+      // Stock screens show this role no cost columns). No suppliers,
+      // purchases, expenses, customers, employees, cash register,
+      // branches, logins, reports or settings.
+      return ['salesman-dashboard', 'sale', 'return', 'products', 'stock', 'sales'].indexOf(action) !== -1;
+    }
     return false;
   },
   currentBranchId() {
@@ -420,6 +439,13 @@ const App = {
   go(screenName) {
     if (!this.user) { this.renderLogin(); return; }
     const nav = NAV.find((n) => n.id === screenName);
+    // Role-specific dashboards (v1.1.5 item 1): 'franchise' and 'salesman'
+    // are reachable ONLY by their own role, even though can() returns
+    // true for the Owner for every action.
+    if (nav && nav.roles && nav.roles.indexOf(this.user.role) === -1) {
+      this.notify('Is screen ki permission nahi hai', 'error');
+      return;
+    }
     if (nav && !this.can(nav.action)) {
       this.notify('Is screen ki permission nahi hai', 'error');
       return;
@@ -480,6 +506,11 @@ const App = {
     nav.innerHTML = '';
     NAV.forEach((item) => {
       if (!this.can(item.action)) return; // hide nav items the role cannot use
+      // Role-specific dashboards (v1.1.5 item 1): the franchise dashboard
+      // shows ONLY for Franchise, the salesman dashboard ONLY for
+      // Salesman — without this the Owner (can() = true for everything)
+      // would see three "Dashboard" items.
+      if (item.roles && item.roles.indexOf(this.user.role) === -1) return;
       const btn = el('<button type="button" class="nav-item' + (this.currentScreen === item.id ? ' active' : '') + '">' + esc(item.label) + '</button>');
       btn.addEventListener('click', () => this.go(item.id));
       nav.appendChild(btn);
@@ -507,6 +538,19 @@ const App = {
     const wrap = el('<div></div>');
     wrap.appendChild(el('<h3 style="text-align:left">Login Karein</h3>'));
     wrap.appendChild(el('<p class="muted" style="text-align:left">Apna naam chunein aur PIN dalein.</p>'));
+    // PIN brute-force lock message (v1.1.5): shows under the form when
+    // the selected login is locked, with the remaining lock time.
+    const lockMsg = el('<p class="muted" style="text-align:left"></p>');
+    const showLockMsg = () => {
+      const u = this._selectedLoginUser;
+      if (!u || !DB.isLoginLocked) { lockMsg.textContent = ''; return; }
+      try {
+        const lock = DB.isLoginLocked(u.username);
+        lockMsg.textContent = lock.locked
+          ? ('Ye login lock hai — ' + lock.remainingMinutes + ' minute baad dobara koshish karein.')
+          : '';
+      } catch (e) { lockMsg.textContent = ''; }
+    };
     const list = el('<div class="login-user-list"></div>');
     users.forEach((u) => {
       const b = el('<button type="button" class="btn login-user-btn">' + esc(u.name) + ' <span class="muted">(' + esc(u.role) + ')</span></button>');
@@ -514,6 +558,7 @@ const App = {
         this._selectedLoginUser = u;
         list.querySelectorAll('.login-user-btn').forEach((x) => x.classList.remove('selected'));
         b.classList.add('selected');
+        showLockMsg();
         pinInput.focus();
       });
       list.appendChild(b);
@@ -537,19 +582,40 @@ const App = {
       const u = this._selectedLoginUser;
       if (!u) { this.notify('Pehle apna naam chunein', 'warning'); return; }
       if (pin.length < 4) { this.notify('PIN kam az kam 4 digit ka hona chahiye', 'warning'); return; }
+      // PIN brute-force protection (v1.1.5): 5 ghalat PIN ke baad ye
+      // login 15 minute ke liye lock ho jata hai. Lock data file me
+      // save hota hai, is liye app band kar ke kholne se reset nahi
+      // hota — sirf waqt guzarne se khulta hai.
+      if (DB.isLoginLocked) {
+        let lock = null;
+        try { lock = DB.isLoginLocked(u.username); } catch (e) { lock = null; }
+        if (lock && lock.locked) {
+          this.notify('Ye login lock hai — ' + lock.remainingMinutes + ' minute baad dobara koshish karein', 'error');
+          pinInput.value = '';
+          showLockMsg();
+          return;
+        }
+      }
       // PINs are stored hashed only (DB.hashPin / DB.checkPin).
       let ok = false;
       try { ok = DB.checkPin ? DB.checkPin(u, pin) : false; } catch (e) { ok = false; }
       if (ok) {
+        if (DB.recordSuccessfulLogin) { try { DB.recordSuccessfulLogin(u.username); } catch (e) {} }
         this.login(u);
       } else {
-        this.notify('Ghalat PIN — dobara koshish karein', 'error');
+        let lockedNow = false;
+        if (DB.recordFailedLogin) { try { const r = DB.recordFailedLogin(u.username); lockedNow = !!(r && r.locked); } catch (e) {} }
+        if (lockedNow) this.notify('5 ghalat PIN — ye login 15 minute ke liye lock ho gaya hai', 'error');
+        else this.notify('Ghalat PIN — dobara koshish karein', 'error');
         pinInput.value = '';
         pinInput.focus();
+        showLockMsg();
       }
     });
     wrap.appendChild(form);
+    wrap.appendChild(lockMsg);
     body.appendChild(wrap);
+    showLockMsg();
     // After a session lock, the PIN field is focused straight away.
     if (this._selectedLoginUser) { try { pinInput.focus(); } catch (e) { /* ignore */ } }
   },
@@ -620,7 +686,9 @@ const App = {
         }
       }
     } catch (e) { /* backup failure must never block login */ }
-    this.go(this.user.role === 'Franchise' ? 'franchise' : (this.can('dashboard') ? 'dashboard' : 'pos'));
+    this.go(this.user.role === 'Franchise' ? 'franchise'
+      : (this.user.role === 'Salesman' ? 'salesman'
+      : (this.can('dashboard') ? 'dashboard' : 'pos')));
   },
 
   logout() {

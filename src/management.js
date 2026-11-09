@@ -42,7 +42,7 @@
   }
   function denied(el, msg) {
     el.innerHTML = '<div class="card"><h2>Access denied</h2><p>' + esc(msg || 'Only the Owner can open this screen.') + '</p><button class="btn" data-go="dashboard">Back to Dashboard</button></div>';
-    var b = el.querySelector('[data-go]'); if (b) b.addEventListener('click', function () { try { App.go(App.user && App.user.role === 'Franchise' ? 'franchise' : 'dashboard'); } catch (e) {} });
+    var b = el.querySelector('[data-go]'); if (b) b.addEventListener('click', function () { try { App.go(App.user && App.user.role === 'Franchise' ? 'franchise' : (App.user && App.user.role === 'Salesman' ? 'salesman' : 'dashboard')); } catch (e) {} });
   }
   function branchName(id) {
     try { if (window.App && App.branchName) return App.branchName(id); } catch (e) {}
@@ -748,7 +748,7 @@
         formHtml = '<div class="card"><h3>' + (isNew ? 'Add Login' : 'Edit Login') + '</h3>' +
           '<div class="form-row"><label>Name <input id="lg-name" value="' + esc(u0.name || '') + '"></label>' +
           '<label>Username <input id="lg-username" value="' + esc(u0.username || '') + '"></label>' +
-          '<label>Role <select id="lg-role">' + ['Owner', 'Manager', 'Cashier', 'Storekeeper', 'Franchise'].map(function (r) { return '<option' + (u0.role === r ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></label></div>' +
+          '<label>Role <select id="lg-role">' + ['Owner', 'Manager', 'Cashier', 'Storekeeper', 'Franchise', 'Salesman'].map(function (r) { return '<option' + (u0.role === r ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></label></div>' +
           '<div class="form-row"><label>Branch (for non-Owners) <select id="lg-branch">' + branchOptions(u0.branchId) + '</select></label>' +
           (isNew ? '<label>PIN (4–6 digits) <input id="lg-pin" type="password" inputmode="numeric" maxlength="6" placeholder="e.g. 1234"></label>' : '') +
           (!isNew ? '<label><input type="checkbox" id="lg-active" ' + (userIsActive(u0) ? 'checked' : '') + '> Active</label>' : '') + '</div>' +

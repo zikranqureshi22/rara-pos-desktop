@@ -29,8 +29,11 @@ function renderProducts(container) {
   container.innerHTML = '';
   const st = S();
   // Franchise is VIEW-ONLY (v1.1.3): no add/edit, so no price changes.
+  // Salesman is view-only too (v1.1.5) and sees only his own branch's
+  // stock — never other branches' quantities (same as Franchise).
   const isFranchise = window.App.user && window.App.user.role === 'Franchise';
-  const ownBranch = isFranchise ? window.App.currentBranchId() : null;
+  const isSalesman = window.App.user && window.App.user.role === 'Salesman';
+  const ownBranch = (isFranchise || isSalesman) ? window.App.currentBranchId() : null;
   const canEdit = window.App.can('products') && !isFranchise && (window.App.user.role === 'Owner' || window.App.user.role === 'Manager');
   const canDelete = window.App.user && window.App.user.role === 'Owner';
   const canSeeCost = window.App.canSeeCost();
@@ -72,14 +75,14 @@ function renderProducts(container) {
     const card = el('<div class="card"><div class="table-wrap"><table><thead><tr><th>Photo</th><th>Name</th><th>SKU</th><th>Barcode</th><th>Price</th>' +
       (isFranchise ? '<th>Cost</th>' : '') +
       (canSeeCost ? '<th>Purchase Price</th>' : '') +
-      '<th>Stock' + (isFranchise ? ' (RARA Township)' : ' (Total)') + '</th>' + (isFranchise ? '' : '<th>Per Branch</th>') + '<th>Actions</th></tr></thead><tbody></tbody></table></div></div>');
+      '<th>Stock' + ((isFranchise || isSalesman) ? ' (' + esc(window.App.branchName(ownBranch)) + ')' : ' (Total)') + '</th>' + ((isFranchise || isSalesman) ? '' : '<th>Per Branch</th>') + '<th>Actions</th></tr></thead><tbody></tbody></table></div></div>');
     const tbody = card.querySelector('tbody');
     products.forEach((p) => {
-      // Franchise sees ONLY its own branch's stock — never other
-      // branches' quantities and never the all-branch total.
-      const total = isFranchise ? window.App.stockOf(p, ownBranch) : window.App.totalStock(p);
+      // Franchise and Salesman see ONLY their own branch's stock — never
+      // other branches' quantities and never the all-branch total.
+      const total = (isFranchise || isSalesman) ? window.App.stockOf(p, ownBranch) : window.App.totalStock(p);
       const low = Number(p.lowThreshold) || 10;
-      const perBranch = isFranchise ? '' : (st.branches || []).map((b) => esc(b.name) + ': ' + window.App.stockOf(p, b.id)).join(' | ');
+      const perBranch = (isFranchise || isSalesman) ? '' : (st.branches || []).map((b) => esc(b.name) + ': ' + window.App.stockOf(p, b.id)).join(' | ');
       const stockBadge = total <= 0 ? '<span class="badge badge-red">Out of Stock</span>'
         : total <= low ? '<span class="badge badge-amber">Low Stock</span>'
         : '<span class="badge badge-green">In Stock</span>';
@@ -92,7 +95,7 @@ function renderProducts(container) {
         (isFranchise ? '<td>' + money(p.franchisePrice) + '</td>' : '') +
         (canSeeCost ? '<td>' + money(p.purchasePrice) + '</td>' : '') +
         '<td>' + total + ' ' + stockBadge + '</td>' +
-        (isFranchise ? '' : '<td><small>' + perBranch + '</small></td>') + '<td></td>';
+        ((isFranchise || isSalesman) ? '' : '<td><small>' + perBranch + '</small></td>') + '<td></td>';
       const td = tr.lastElementChild;
       if (canEdit) {
         const edit = el('<button type="button" class="btn btn-sm">Edit</button>');
