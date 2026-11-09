@@ -102,6 +102,10 @@ function sanitiseErrorMessage(e) {
 const OWNER_ONLY = ['sale-cancel', 'settings', 'reports', 'purchases', 'suppliers', 'logins'];
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', action: 'dashboard' },
+  // Franchise dashboard (v1.1.3): own-branch only — sales, profit,
+  // expenses and stock for the franchise's own branch. The generic
+  // dashboard shows every branch, so Franchise never gets it.
+  { id: 'franchise', label: 'Dashboard', action: 'franchise-dashboard' },
   { id: 'pos', label: 'Sale', action: 'sale' },
   { id: 'products', label: 'Products', action: 'products' },
   { id: 'stock', label: 'Stock', action: 'stock' },
@@ -390,8 +394,13 @@ const App = {
       return ['sale', 'return', 'stock', 'sales'].indexOf(action) !== -1;
     }
     if (role === 'Franchise') {
-      return ['dashboard', 'sale', 'return', 'products', 'stock', 'sales',
-              'customers', 'cash'].indexOf(action) !== -1;
+      // Franchise (v1.1.3): own branch only — sell, view own-branch stock,
+      // own sales history, and the own-branch franchise dashboard (with
+      // profit, at the Owner's explicit instruction). No generic
+      // dashboard (all branches), no customers/cash screens (cross-branch
+      // data), and no suppliers, users/logins, Settings or price changes
+      // (those stay OWNER_ONLY / Owner-or-Manager in their screens).
+      return ['franchise-dashboard', 'sale', 'return', 'products', 'stock', 'sales'].indexOf(action) !== -1;
     }
     return false;
   },
@@ -449,7 +458,13 @@ const App = {
     const sel = document.getElementById('branch-select');
     if (sel) {
       const cur = this.currentBranchId();
-      sel.innerHTML = (this.state.branches || []).map((b) =>
+      // Non-Owners are locked to their own branch — and the dropdown
+      // only ever lists that one branch, so other branches are not
+      // even visible as options.
+      const visibleBranches = (this.user && this.user.role === 'Owner')
+        ? (this.state.branches || [])
+        : (this.state.branches || []).filter((b) => String(b.id) === String(cur));
+      sel.innerHTML = visibleBranches.map((b) =>
         '<option value="' + esc(b.id) + '"' + (String(b.id) === String(cur) ? ' selected' : '') + '>' + esc(b.name) + '</option>'
       ).join('');
       // Non-Owners are locked to their own branch.
@@ -605,7 +620,7 @@ const App = {
         }
       }
     } catch (e) { /* backup failure must never block login */ }
-    this.go(this.can('dashboard') ? 'dashboard' : 'pos');
+    this.go(this.user.role === 'Franchise' ? 'franchise' : (this.can('dashboard') ? 'dashboard' : 'pos'));
   },
 
   logout() {

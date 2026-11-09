@@ -304,6 +304,28 @@ const DB = {
     // Settings defaults for older data files.
     if (!this.state.settings) this.state.settings = {};
     if (this.state.settings.sessionTimeoutMinutes == null) this.state.settings.sessionTimeoutMinutes = 15;
+    // v1.1.3 one-time migration: existing installs were seeded before the
+    // RARA Township franchise login existed, so seed.json alone never
+    // reaches them. Add the login once (username 'township', default PIN
+    // 1234, Franchise, branch 3) and remember it with a flag — the flag
+    // stops the login coming back if the Owner later deletes or disables
+    // it on purpose. Fresh installs get the same login from seed.json.
+    if (!this.state.settings.townshipLoginSeeded) {
+      this.state.settings.townshipLoginSeeded = true;
+      const hasTownship = (this.state.appUsers || []).some((u) => String(u.username || '').toLowerCase() === 'township');
+      const townshipBranch = (this.state.branches || []).find((b) => String(b.id) === '3');
+      if (!hasTownship && townshipBranch) {
+        this.state.appUsers = this.state.appUsers || [];
+        this.state.appUsers.push({
+          id: this.nextId('appUsers'),
+          name: 'RARA Township', username: 'township',
+          pinHash: this.hashPin('1234'),
+          role: 'Franchise', branchId: townshipBranch.id, branchName: townshipBranch.name,
+          isActive: true,
+        });
+        try { this.save(); } catch (e) { /* migration runs again next load */ }
+      }
+    }
     this.buildIndexes();
     return this.state;
   },
@@ -576,20 +598,42 @@ const DB = {
   // suppliers, purchases or logins (and non-Owner/non-Manager roles also
   // lose expenses, employees and cash sessions). PIN hashes are never
   // included for any role — logins are only ever checked via checkPin.
+  //
+  // FRANCHISE exception (v1.1.3, at the user's explicit instruction):
+  // the RARA Township franchise login DOES see its OWN branch's profit,
+  // so its copy KEEPS purchasePrice (profit = revenue - cost needs it)
+  // and its OWN branch's sales, expenses, stock movements and transfers.
+  // It still never receives suppliers, purchases, logins, employees or
+  // cash sessions, and never any other branch's rows. Showing profit
+  // necessarily reveals margins — that is the Owner's call.
   sanitizeState(user) {
     const role = user && user.role;
     const copy = JSON.parse(JSON.stringify(this.state));
+    const ownBranch = user && user.branchId != null ? String(user.branchId) : null;
     copy.products = (copy.products || []).map((p) => {
-      if (role !== 'Owner') { p.purchasePrice = 0; p.wholesalePrice = 0; p.franchisePrice = 0; }
+      if (role !== 'Owner' && role !== 'Franchise') { p.purchasePrice = 0; p.wholesalePrice = 0; p.franchisePrice = 0; }
       return p;
     });
+    if (role === 'Franchise' && ownBranch) {
+      const own = (rows) => (rows || []).filter((r) => String(r.branchId) === ownBranch);
+      const ownTransfer = (rows) => (rows || []).filter((r) => String(r.fromBranchId) === ownBranch || String(r.toBranchId) === ownBranch);
+      copy.sales = own(copy.sales);
+      copy.expenses = own(copy.expenses);
+      copy.stockMovements = own(copy.stockMovements);
+      copy.transfers = ownTransfer(copy.transfers);
+      copy.branches = (copy.branches || []).filter((b) => String(b.id) === ownBranch);
+    }
     if (role !== 'Owner') {
       copy.suppliers = [];
       copy.purchases = [];
       copy.appUsers = [];
     }
-    if (role !== 'Owner' && role !== 'Manager') {
+    if (role !== 'Owner' && role !== 'Manager' && role !== 'Franchise') {
       copy.expenses = [];
+      copy.employees = [];
+      copy.cashSessions = [];
+    }
+    if (role === 'Franchise') {
       copy.employees = [];
       copy.cashSessions = [];
     }

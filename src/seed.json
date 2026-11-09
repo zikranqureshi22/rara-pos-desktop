@@ -1,5 +1,5 @@
 {
-  "_note": "Seeded from the live Muse POS database 2026-11-06 (read-only). B4 Berry purchasePrice is the real user-entered cost Rs 1,254 (other products 0 until the Owner enters real costs — profit is overstated until then). Transfers (10) and stock movements (30) carried over as history. appUsers intentionally empty: PINs are not migrated; Owner and cashier set new PINs on first launch. Separate system from Muse POS, no sync.",
+  "_note": "Seeded from the live Muse POS database 2026-11-06 (read-only). B4 Berry purchasePrice is the real user-entered cost Rs 1,254 (other products 0 until the Owner enters real costs — profit is overstated until then). Transfers (10) and stock movements (30) carried over as history. appUsers: only the RARA Township franchise login (username 'township', default PIN 1234) is seeded — Owner and cashier set new PINs on first launch. Separate system from Muse POS, no sync.",
   "products": [
     {
       "id": 1,
@@ -1087,7 +1087,18 @@
       "status": "open"
     }
   ],
-  "appUsers": [],
+  "appUsers": [
+    {
+      "id": 1,
+      "name": "RARA Township",
+      "username": "township",
+      "pinHash": "9b2680285f0d118e9cd5c057a3f292083b655b9c218e7cc39896da4426cac3f7",
+      "role": "Franchise",
+      "branchId": 3,
+      "branchName": "RARA Township",
+      "isActive": true
+    }
+  ],
   "settings": {
     "businessName": "RARA Perfumes & Fashion",
     "phone": "",

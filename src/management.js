@@ -42,7 +42,7 @@
   }
   function denied(el, msg) {
     el.innerHTML = '<div class="card"><h2>Access denied</h2><p>' + esc(msg || 'Only the Owner can open this screen.') + '</p><button class="btn" data-go="dashboard">Back to Dashboard</button></div>';
-    var b = el.querySelector('[data-go]'); if (b) b.addEventListener('click', function () { try { App.go('dashboard'); } catch (e) {} });
+    var b = el.querySelector('[data-go]'); if (b) b.addEventListener('click', function () { try { App.go(App.user && App.user.role === 'Franchise' ? 'franchise' : 'dashboard'); } catch (e) {} });
   }
   function branchName(id) {
     try { if (window.App && App.branchName) return App.branchName(id); } catch (e) {}

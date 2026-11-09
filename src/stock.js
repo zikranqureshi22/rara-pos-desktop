@@ -27,13 +27,17 @@ function renderStock(container) {
   const st = S();
   const isOwner = window.App.user && window.App.user.role === 'Owner';
   const canManage = window.App.can('stock') && (window.App.user.role === 'Owner' || window.App.user.role === 'Manager');
+  // Franchise sees ONLY its own branch here (v1.1.3) — other branches'
+  // quantities, transfers and movements are never shown.
+  const isFranchise = window.App.user && window.App.user.role === 'Franchise';
+  const ownBranch = isFranchise ? window.App.currentBranchId() : null;
   let viewBranch = window.App.currentBranchId();
 
   const head = el('<div class="screen-head"><h1>Stock</h1></div>');
   container.appendChild(head);
 
   const branchCard = el('<div class="card"><div class="toolbar"><div class="field"><label>Branch</label>' +
-    '<select class="input" id="stock-branch">' + (st.branches || []).map((b) =>
+    '<select class="input" id="stock-branch">' + (st.branches || []).filter((b) => isOwner || String(b.id) === String(viewBranch)).map((b) =>
       '<option value="' + esc(b.id) + '"' + (String(b.id) === String(viewBranch) ? ' selected' : '') + '>' + esc(b.name) + '</option>').join('') +
     '</select></div></div></div>');
   container.appendChild(branchCard);
@@ -51,7 +55,7 @@ function renderStock(container) {
       tableWrap.appendChild(el('<div class="card"><p class="muted">Koi product nahi hai — pehle Products se add karein.</p></div>'));
       return;
     }
-    const card = el('<div class="card"><h2>Stock — ' + esc(window.App.branchName(viewBranch)) + '</h2><div class="table-wrap"><table><thead><tr><th>Product</th><th>SKU</th><th>Is Branch</th><th>Total (Sab Branches)</th><th>Status</th></tr></thead><tbody></tbody></table></div></div>');
+    const card = el('<div class="card"><h2>Stock — ' + esc(window.App.branchName(viewBranch)) + '</h2><div class="table-wrap"><table><thead><tr><th>Product</th><th>SKU</th><th>Is Branch</th>' + (isFranchise ? '' : '<th>Total (Sab Branches)</th>') + '<th>Status</th></tr></thead><tbody></tbody></table></div></div>');
     const tbody = card.querySelector('tbody');
     products.forEach((p) => {
       const qty = window.App.stockOf(p, viewBranch);
@@ -62,7 +66,7 @@ function renderStock(container) {
         : '<span class="badge badge-green">OK</span>';
       const tr = document.createElement('tr');
       tr.innerHTML = '<td><b>' + esc(p.name || '') + '</b></td><td>' + esc(p.sku || '') + '</td>' +
-        '<td><b>' + qty + '</b></td><td>' + total + '</td><td>' + badge + '</td>';
+        '<td><b>' + qty + '</b></td>' + (isFranchise ? '' : '<td>' + total + '</td>') + '<td>' + badge + '</td>';
       tbody.appendChild(tr);
     });
     tableWrap.appendChild(card);
@@ -147,8 +151,14 @@ function renderStock(container) {
       });
       card.appendChild(form);
     }
-    const pending = (st.transfers || []).filter((t) => t.status === 'pending' || t.status === 'partial');
-    const done = (st.transfers || []).filter((t) => t.status !== 'pending' && t.status !== 'partial');
+    const pending = (st.transfers || []).filter((t) => {
+      if (isFranchise && String(t.fromBranchId) !== String(ownBranch) && String(t.toBranchId) !== String(ownBranch)) return false;
+      return t.status === 'pending' || t.status === 'partial';
+    });
+    const done = (st.transfers || []).filter((t) => {
+      if (isFranchise && String(t.fromBranchId) !== String(ownBranch) && String(t.toBranchId) !== String(ownBranch)) return false;
+      return t.status !== 'pending' && t.status !== 'partial';
+    });
     if (pending.length === 0) {
       card.appendChild(el('<p class="muted">Koi pending transfer nahi hai.</p>'));
     } else {
@@ -270,7 +280,9 @@ function renderStock(container) {
 
   /* ---- Stock history ---- */
   const histCard = el('<div class="card"><h2>Stock History</h2></div>');
-  const moves = (st.stockMovements || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 100);
+  // Franchise sees only its own branch's movements (v1.1.3).
+  const allMoves = (st.stockMovements || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const moves = (isFranchise ? allMoves.filter((m) => String(m.branchId) === String(ownBranch)) : allMoves).slice(0, 100);
   if (moves.length === 0) {
     histCard.appendChild(el('<p class="muted">Abhi koi stock movement nahi hai.</p>'));
   } else {
