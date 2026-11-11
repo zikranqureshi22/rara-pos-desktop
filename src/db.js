@@ -558,6 +558,119 @@ const DB = {
     return { sale, created: true };
   },
 
+  /* ---------- sales netting + product-wise profit (v1.1.6) ---------- */
+  // Feature 3 rule, in ONE place so the Owner Dashboard, Sales History
+  // and the franchise/salesman dashboards all count the same way:
+  //   * a sale counts ("successful") unless it was cancelled or fully
+  //     returned. A partial return still counts — only the returned
+  //     part is subtracted.
+  //   * returned money is the refund recorded on the sale's returns
+  //     entries; a sale's net total is gross minus refunds, never below
+  //     0 (a fully returned discounted bill must not go negative).
+  // These helpers only READ — no sale record is ever changed by them.
+  isSuccessfulSale(sale) {
+    if (!sale) return false;
+    var t = String(sale.status || '').toLowerCase();
+    if (t === 'cancelled' || t === 'canceled' || t === 'returned' || t === 'refunded') return false;
+    if (sale.isReturned) return false;
+    return true;
+  },
+  isCancelledSale(sale) {
+    if (!sale) return false;
+    var t = String(sale.status || '').toLowerCase();
+    return t === 'cancelled' || t === 'canceled' || !!sale.isCancelled;
+  },
+  returnsOf(sale) {
+    return (sale && Array.isArray(sale.returns)) ? sale.returns : [];
+  },
+  returnsRefund(sale) {
+    return this.returnsOf(sale).reduce(function (a, r) {
+      return a + (Number(r && r.refund != null ? r.refund : 0) || 0);
+    }, 0);
+  },
+  returnedQty(sale, productId) {
+    var q = 0;
+    this.returnsOf(sale).forEach(function (r) {
+      (r.items || []).forEach(function (it) {
+        if (String(it.productId) === String(productId)) q += Number(it.qty) || 0;
+      });
+    });
+    return q;
+  },
+  saleTotalOf(sale) {
+    return Number(sale && sale.total != null ? sale.total : 0) || 0;
+  },
+  netSaleTotal(sale) {
+    return Math.max(0, this.saleTotalOf(sale) - this.returnsRefund(sale));
+  },
+  // Owner cost basis (v1.1.6): the product's CURRENT purchasePrice.
+  // franchisePrice is the franchisee's cost and is never used here.
+  // For a product that no longer exists, fall back to the cost snapshot
+  // recorded on the sale line at sale time.
+  ownerUnitCost(item, product) {
+    if (product) return Number(product.purchasePrice) || 0;
+    if (item) return Number(item.cost != null ? item.cost : (item.purchasePrice || 0)) || 0;
+    return 0;
+  },
+  // Per-product sales / cost / profit for a list of sales. Only
+  // successful sales count in the money totals; cancelled sales are
+  // excluded entirely, and partial returns subtract only the returned
+  // product's amount. A fully returned product still gets a row (qty 0,
+  // its returned qty shown) so the return stays visible; a cancelled
+  // product gets no row at all. Costs are never invented: a product
+  // with purchasePrice 0 contributes cost 0 (profit = sales) and sets
+  // the costZero flag so the UI can say so plainly.
+  // Returns { rows: [{productId, name, qty, returned, revenue, cost,
+  // profit, unitCost, costZero}], totals: {qty, returned, revenue,
+  // cost, profit}, netSales, netProfit, costZero, orders, returns }.
+  // netSales/netProfit are the accurate sale totals (net of returns,
+  // successful sales only); the rows' revenue is the same number when
+  // no bill-level discounts exist.
+  productWise(sales, products) {
+    var self = this;
+    var byId = {};
+    (products || []).forEach(function (p) { byId[String(p.id)] = p; });
+    var map = {};
+    var orders = 0, returnsMoney = 0, netSales = 0;
+    (sales || []).forEach(function (s) {
+      returnsMoney += self.returnsRefund(s);
+      if (self.isCancelledSale(s)) return;
+      if (self.isSuccessfulSale(s)) {
+        orders += 1;
+        netSales += self.netSaleTotal(s);
+      }
+      var items = Array.isArray(s.items) ? s.items : [];
+      items.forEach(function (it) {
+        var pid = it.productId != null ? String(it.productId) : null;
+        var prod = pid != null ? byId[pid] : null;
+        var name = it.name || it.productName || (prod && prod.name) || 'Product';
+        var key = pid != null ? pid : name;
+        if (!map[key]) map[key] = { productId: pid, name: name, qty: 0, returned: 0, revenue: 0, cost: 0, profit: 0, unitCost: 0, costZero: false };
+        var row = map[key];
+        var unitCost = self.ownerUnitCost(it, prod);
+        row.unitCost = unitCost;
+        if (!unitCost) row.costZero = true;
+        var retQ = pid != null ? self.returnedQty(s, pid) : 0;
+        var netQ = (Number(it.qty) || 0) - retQ;
+        var price = Number(it.unitPrice != null ? it.unitPrice : (it.price || 0)) || 0;
+        row.qty += netQ;
+        row.returned += retQ;
+        row.revenue += netQ * price;
+        row.cost += netQ * unitCost;
+      });
+    });
+    var rows = Object.keys(map).map(function (k) { return map[k]; });
+    rows.forEach(function (r) { r.profit = r.revenue - r.cost; });
+    rows.sort(function (a, b) { return b.revenue - a.revenue; });
+    var totals = { qty: 0, returned: 0, revenue: 0, cost: 0, profit: 0 };
+    rows.forEach(function (r) {
+      totals.qty += r.qty; totals.returned += r.returned;
+      totals.revenue += r.revenue; totals.cost += r.cost; totals.profit += r.profit;
+    });
+    var costZero = rows.some(function (r) { return r.qty > 0 && r.costZero; });
+    return { rows: rows, totals: totals, netSales: netSales, netProfit: netSales - totals.cost, costZero: costZero, orders: orders, returns: returnsMoney };
+  },
+
   /* ---------- indexed report query ---------- */
   // Sales in a date range for one branch ('all' for every branch), using
   // the branch+date index instead of scanning every sale. Dates are

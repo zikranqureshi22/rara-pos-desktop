@@ -65,13 +65,20 @@
     var ownSales = (st.sales || []).filter(function (s) {
       return String(s.branchId) === String(branchId) && !isCancelled(s);
     });
-    var todaySales = ownSales.filter(function (s) { return saleDate(s) && sameDay(saleDate(s), now); });
+    // v1.1.6: only successful sales count in the order count (money
+    // totals were already net of returns). A fully returned sale is
+    // not an order any more; a partial return still counts as one.
+    var todaySales = ownSales.filter(function (s) { return DB.isSuccessfulSale(s) && saleDate(s) && sameDay(saleDate(s), now); });
     var todayTotal = todaySales.reduce(function (a, s) { return a + netSaleTotal(s); }, 0);
     var paidToday = todaySales.reduce(function (a, s) { return a + (salePaid(s) - returnsRefund(s)); }, 0);
     var soldToday = 0;
     var returnedToday = 0;
     todaySales.forEach(function (s) {
       saleItems(s).forEach(function (it) { soldToday += itemQty(it) - returnedQty(s, it.productId); });
+    });
+    // "Products Returned" counts every product returned today — including
+    // fully returned sales, which are not orders any more (v1.1.6).
+    ownSales.filter(function (s) { return saleDate(s) && sameDay(saleDate(s), now); }).forEach(function (s) {
       returnedToday += returnedQty(s, null);
     });
 

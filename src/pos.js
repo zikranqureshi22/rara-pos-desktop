@@ -662,10 +662,19 @@ function renderSales(container) {
       listWrap.appendChild(el('<div class="card"><p class="muted">Koi sale nahi mili.</p></div>'));
       return;
     }
-    const total = sales.filter((s) => s.status !== 'cancelled').reduce((a, s) => a + saleTotal(s), 0);
-    listWrap.appendChild(el('<div class="stat-grid"><div class="stat"><div class="stat-label">Total Sales</div><div class="stat-value">' + sales.length + '</div></div>' +
-      '<div class="stat"><div class="stat-label">Total Amount</div><div class="stat-value">' + money(total) + '</div></div></div>'));
-    const card = el('<div class="card"><div class="table-wrap"><table><thead><tr><th>Bill</th><th>Date</th><th>Branch</th><th>Cashier</th><th>Items</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table></div></div>');
+    // v1.1.6: totals count only successful sales, net of returns. A
+    // partial return subtracts only the returned product's amount; a
+    // fully returned or cancelled sale never counts again. The table
+    // still lists every sale (history is never changed or deleted) —
+    // each row now shows its net total and what was returned on it.
+    const successfulSales = sales.filter((s) => DB.isSuccessfulSale(s));
+    const total = successfulSales.reduce((a, s) => a + DB.netSaleTotal(s), 0);
+    const returnsTotal = sales.reduce((a, s) => a + DB.returnsRefund(s), 0);
+    const returnsCount = sales.filter((s) => DB.returnsRefund(s) > 0).length;
+    listWrap.appendChild(el('<div class="stat-grid"><div class="stat"><div class="stat-label">Total Sales</div><div class="stat-value">' + successfulSales.length + '</div><div class="stat-sub">' + sales.length + ' total record(s)</div></div>' +
+      '<div class="stat"><div class="stat-label">Total Amount</div><div class="stat-value">' + money(total) + '</div><div class="stat-sub">successful sales, returns minus</div></div>' +
+      '<div class="stat"><div class="stat-label">Returns</div><div class="stat-value">' + money(returnsTotal) + '</div><div class="stat-sub">' + returnsCount + ' sale(s) returned</div></div></div>'));
+    const card = el('<div class="card"><div class="table-wrap"><table><thead><tr><th>Bill</th><th>Date</th><th>Branch</th><th>Cashier</th><th>Items</th><th>Total</th><th>Returned</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table></div></div>');
     const tbody = card.querySelector('tbody');
     sales.forEach((sale) => {
       const tr = document.createElement('tr');
@@ -677,7 +686,7 @@ function renderSales(container) {
         : '<span class="badge badge-green">Completed</span>';
       tr.innerHTML = '<td><b>' + esc(saleBillNo(sale)) + '</b></td><td>' + esc(fmtDate(saleDate(sale))) + '</td>' +
         '<td>' + esc(sale.branchName || window.App.branchName(sale.branchId)) + '</td><td>' + esc(sale.cashier || '') + '</td>' +
-        '<td>' + itemsCount + '</td><td>' + money(saleTotal(sale)) + '</td><td>' + money(salePaid(sale)) + '</td>' +
+        '<td>' + itemsCount + '</td><td>' + money(DB.netSaleTotal(sale)) + '</td><td>' + (DB.returnsRefund(sale) ? money(DB.returnsRefund(sale)) : '—') + '</td><td>' + money(salePaid(sale)) + '</td>' +
         '<td>' + money(saleBalance(sale)) + '</td><td>' + statusBadge + '</td><td></td>';
       const td = tr.lastElementChild;
       const btnRow = el('<div class="btn-row"></div>');

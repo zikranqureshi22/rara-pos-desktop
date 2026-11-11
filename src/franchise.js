@@ -96,7 +96,8 @@
     var ownSales = (st.sales || []).filter(function (s) {
       return String(s.branchId) === String(branchId) && !isCancelled(s);
     });
-    var todaySales = ownSales.filter(function (s) { return saleDate(s) && sameDay(saleDate(s), now); });
+    var todaySales = ownSales.filter(function (s) { return DB.isSuccessfulSale(s) && saleDate(s) && sameDay(saleDate(s), now); });
+    var successfulOwn = ownSales.filter(function (s) { return DB.isSuccessfulSale(s); });
     var todayTotal = todaySales.reduce(function (a, s) { return a + netSaleTotal(s); }, 0);
     var allTotal = ownSales.reduce(function (a, s) { return a + netSaleTotal(s); }, 0);
 
@@ -163,7 +164,7 @@
     }
     var cards = '';
     cards += card("Aaj ki Sales", esc(money(todayTotal)), todaySales.length + ' order(s) aaj');
-    cards += card('Total Sales (sab)', esc(money(allTotal)), ownSales.length + ' order(s) — sirf is branch ki');
+    cards += card('Total Sales (sab)', esc(money(allTotal)), successfulOwn.length + ' order(s) — sirf is branch ki');
     cards += card('Total Profit', esc(money(totalProfit)), costZero ? 'Note: kuch products ki cost 0 hai — profit zyada dikh sakta hai' : 'revenue minus franchise cost');
     cards += card('Aaj ke Expenses', esc(money(expensesToday)), 'Total expenses: ' + esc(money(expensesTotal)));
     cards += card('Total Items Sold', String(totalSoldQty), products.length + ' products');
