@@ -671,6 +671,45 @@ const DB = {
     return { rows: rows, totals: totals, netSales: netSales, netProfit: netSales - totals.cost, costZero: costZero, orders: orders, returns: returnsMoney };
   },
 
+  /* ---------- Stock Transfer Bill values (v1.1.7) ---------- */
+  // Per-item franchise + sale values for a transfer, from the product's
+  // CURRENT prices — franchisePrice is what the Owner charges the
+  // franchise/branch per unit, price is the retail sale price. No price
+  // is ever invented: a product with franchisePrice 0 contributes
+  // franchise value 0 and sets the franchiseZero flag so the UI can say
+  // so plainly (same pattern as the v1.1.6 cost-0 note). The bill is
+  // about stock GIVEN, so quantities are the dispatched qty (not the
+  // received qty). Read-only — no transfer record is ever changed.
+  // Returns { rows: [{productId, name, qty, franchisePrice, salePrice,
+  // franchiseValue, saleValue, franchiseZero}], totals: {qty,
+  // franchiseValue, saleValue}, franchiseZero }.
+  transferBillValues(transfer, products) {
+    var byId = {};
+    (products || []).forEach(function (p) { byId[String(p.id)] = p; });
+    var rows = [];
+    var totals = { qty: 0, franchiseValue: 0, saleValue: 0 };
+    var franchiseZero = false;
+    (transfer && Array.isArray(transfer.items) ? transfer.items : []).forEach(function (it) {
+      var prod = it.productId != null ? byId[String(it.productId)] : null;
+      var qty = Number(it.qty) || 0;
+      var fPrice = prod ? (Number(prod.franchisePrice) || 0) : 0;
+      var sPrice = prod ? (Number(prod.price) || 0) : 0;
+      if (qty > 0 && !fPrice) franchiseZero = true;
+      var row = {
+        productId: it.productId != null ? String(it.productId) : null,
+        name: (prod && prod.name) || it.name || it.productName || 'Product',
+        qty: qty, franchisePrice: fPrice, salePrice: sPrice,
+        franchiseValue: qty * fPrice, saleValue: qty * sPrice,
+        franchiseZero: !fPrice
+      };
+      rows.push(row);
+      totals.qty += qty;
+      totals.franchiseValue += row.franchiseValue;
+      totals.saleValue += row.saleValue;
+    });
+    return { rows: rows, totals: totals, franchiseZero: franchiseZero };
+  },
+
   /* ---------- indexed report query ---------- */
   // Sales in a date range for one branch ('all' for every branch), using
   // the branch+date index instead of scanning every sale. Dates are

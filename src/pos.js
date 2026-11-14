@@ -211,6 +211,7 @@ function testPrintReceipt() {
   return printReceiptHtml(html);
 }
 window.App.printReceipt = printReceipt;
+window.App.printReceiptHtml = printReceiptHtml;
 window.App.receiptText = receiptText;
 window.App.measureReceiptHeightPx = measureReceiptHeightPx;
 window.App.testPrintReceipt = testPrintReceipt;
@@ -221,12 +222,27 @@ window.App.testPrintReceipt = testPrintReceipt;
  * always match. Print uses the measured-height print path; Close
  * dismisses without printing. */
 let previewSale = null;
+let previewPrintFn = null;
 function showBillPreview(sale) {
   const overlay = document.getElementById('bill-preview-overlay');
   const body = document.getElementById('bill-preview-body');
   if (!overlay || !body || !sale) return false;
   previewSale = sale;
+  previewPrintFn = function () { return printReceipt(sale); };
   body.innerHTML = receiptHtml(sale);
+  overlay.hidden = false;
+  return true;
+}
+/* Generic bill preview (v1.1.7): any bill HTML — e.g. a Stock Transfer
+ * Bill — can be previewed in the same modal with its own print
+ * function. The sales flow above is unchanged. */
+function showBillPreviewHtml(html, printFn) {
+  const overlay = document.getElementById('bill-preview-overlay');
+  const body = document.getElementById('bill-preview-body');
+  if (!overlay || !body || !html) return false;
+  previewSale = null;
+  previewPrintFn = typeof printFn === 'function' ? printFn : null;
+  body.innerHTML = html;
   overlay.hidden = false;
   return true;
 }
@@ -236,6 +252,7 @@ function hideBillPreview() {
   const body = document.getElementById('bill-preview-body');
   if (body) body.innerHTML = '';
   previewSale = null;
+  previewPrintFn = null;
 }
 function wireBillPreview() {
   const overlay = document.getElementById('bill-preview-overlay');
@@ -243,6 +260,13 @@ function wireBillPreview() {
   const closeBtn = document.getElementById('bill-preview-close');
   const xBtn = document.getElementById('bill-preview-x');
   if (printBtn) printBtn.onclick = async () => {
+    if (previewPrintFn) {
+      const ok = await previewPrintFn();
+      if (ok) hideBillPreview();
+      // If printing failed, the modal stays open so the user can retry
+      // from the print dialog or close it without printing.
+      return;
+    }
     if (!previewSale) return;
     const ok = await printReceipt(previewSale);
     if (ok) hideBillPreview();
@@ -255,6 +279,7 @@ function wireBillPreview() {
 }
 wireBillPreview();
 window.App.showBillPreview = showBillPreview;
+window.App.showBillPreviewHtml = showBillPreviewHtml;
 window.App.hideBillPreview = hideBillPreview;
 
 /* ---------------- Sale processing ---------------- */

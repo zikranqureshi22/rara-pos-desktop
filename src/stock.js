@@ -137,28 +137,78 @@ function renderStock(container) {
         grid.appendChild(d);
       });
       form.appendChild(grid);
+      // v1.1.7: one transfer can carry several products, so one dispatch
+      // bill lists everything given at once. Stage items here with the
+      // Add button; Transfer Banayein creates ONE transfer with all of
+      // them (a product added twice just adds to its quantity). If
+      // nothing is staged, the current row is used as a single item —
+      // the old one-product flow still works exactly as before.
+      const staged = [];
+      const stagedBox = el('<div id="transfer-staged" style="margin-top:10px"></div>');
+      function drawStaged() {
+        stagedBox.innerHTML = '';
+        if (staged.length === 0) return;
+        stagedBox.appendChild(el('<p class="muted" style="margin-bottom:6px">Transfer mein items:</p>'));
+        staged.forEach((it, idx) => {
+          const p = productById(it.productId);
+          const row = el('<div class="btn-row" style="margin-bottom:6px"><span><b>' + esc(p ? p.name : it.productId) + '</b> — Qty ' + it.qty + '</span></div>');
+          const rm = el('<button type="button" class="btn btn-sm btn-danger">Remove</button>');
+          rm.addEventListener('click', () => { staged.splice(idx, 1); drawStaged(); });
+          row.appendChild(rm);
+          stagedBox.appendChild(row);
+        });
+      }
+      const addBtn = el('<button type="button" class="btn" id="transfer-add-item">Item Add Karein</button>');
+      addBtn.addEventListener('click', () => {
+        const qty = Number(qtyInput.value) || 0;
+        if (qty <= 0) { notify('Quantity 0 se zyada honi chahiye', 'warning'); return; }
+        const p = productById(prodSel.value);
+        if (!p) { notify('Product chunein', 'warning'); return; }
+        const existing = staged.find((x) => String(x.productId) === String(p.id));
+        if (existing) existing.qty += qty;
+        else staged.push({ productId: p.id, qty, received: 0 });
+        qtyInput.value = '1';
+        drawStaged();
+      });
+      const addRow = el('<div class="form-actions"></div>');
+      addRow.appendChild(addBtn);
+      form.appendChild(addRow);
+      form.appendChild(stagedBox);
       form.appendChild(el('<p class="muted">Note: transfer banane se stock move nahi hota — stock sirf Receive par move hota hai.</p>'));
       form.appendChild(el('<div class="form-actions"><button type="submit" class="btn btn-primary">Transfer Banayein</button></div>'));
       form.addEventListener('submit', (e) => {
         e.preventDefault();
         if (fromSel.value === toSel.value) { notify('From aur To branch aik jaisi nahi ho sakti', 'warning'); return; }
-        const qty = Number(qtyInput.value) || 0;
-        if (qty <= 0) { notify('Quantity 0 se zyada honi chahiye', 'warning'); return; }
-        const p = productById(prodSel.value);
-        if (!p) { notify('Product chunein', 'warning'); return; }
+        let items = staged.slice();
+        if (items.length === 0) {
+          const qty = Number(qtyInput.value) || 0;
+          if (qty <= 0) { notify('Quantity 0 se zyada honi chahiye', 'warning'); return; }
+          const p = productById(prodSel.value);
+          if (!p) { notify('Product chunein', 'warning'); return; }
+          items = [{ productId: p.id, qty, received: 0 }];
+        }
         st.transfers = st.transfers || [];
-        st.transfers.unshift({
+        const transfer = {
           id: (DB.nextId ? DB.nextId('transfers') : Date.now()), date: new Date().toISOString(),
           fromBranchId: window.App.normBranchId(fromSel.value), toBranchId: window.App.normBranchId(toSel.value),
-          items: [{ productId: p.id, qty, received: 0 }],
+          items: items,
           status: 'pending', createdBy: window.App.user ? window.App.user.name : '',
-        });
+        };
+        st.transfers.unshift(transfer);
         save();
         notify('Transfer ban gaya — Receive par stock move hoga', 'success');
         renderStock(container);
+        // v1.1.7: dispatch bill — show the thermal bill preview right
+        // away, same as the sales bill after a sale.
+        if (window.App.showTransferBill) window.App.showTransferBill(transfer);
       });
       card.appendChild(form);
     }
+    // v1.1.7: the Stock Transfer Bill is visible to the roles that create
+    // transfers (Owner/Manager) and to Franchise (franchisePrice is the
+    // franchisee's own cost, already visible to them) — never to
+    // Salesman or Cashier (no cost / franchise price for those roles).
+    const canSeeBill = canManage || isFranchise;
     const pending = (st.transfers || []).filter((t) => {
       if (isOwnBranchOnly && String(t.fromBranchId) !== String(ownBranch) && String(t.toBranchId) !== String(ownBranch)) return false;
       return t.status === 'pending' || t.status === 'partial';
@@ -183,8 +233,13 @@ function renderStock(container) {
           '<td>' + itemsText + '</td>' +
           '<td><span class="badge badge-amber">' + esc(t.status) + '</span></td><td></td>';
         const td = tr.lastElementChild;
+        if (canSeeBill) {
+          const billBtn = el('<button type="button" class="btn btn-sm">Bill</button>');
+          billBtn.addEventListener('click', () => { if (window.App.showTransferBill) window.App.showTransferBill(t); });
+          td.appendChild(billBtn);
+        }
         if (canManage) {
-          const recv = el('<button type="button" class="btn btn-sm btn-primary">Receive</button>');
+          const recv = el('<button type="button" class="btn btn-sm btn-primary" style="margin-left:6px">Receive</button>');
           recv.addEventListener('click', () => openReceiveForm(container, t));
           td.appendChild(recv);
           const cancel = el('<button type="button" class="btn btn-sm btn-danger" style="margin-left:6px">Cancel</button>');
@@ -197,7 +252,7 @@ function renderStock(container) {
             renderStock(container);
           });
           td.appendChild(cancel);
-        } else {
+        } else if (!canSeeBill) {
           td.textContent = '—';
         }
         tbody.appendChild(tr);
@@ -206,7 +261,7 @@ function renderStock(container) {
     }
     if (done.length > 0) {
       card.appendChild(el('<h3 style="margin-top:16px">Pichle Transfers</h3>'));
-      const list = el('<div class="table-wrap"><table><thead><tr><th>Date</th><th>From → To</th><th>Items</th><th>Status</th></tr></thead><tbody></tbody></table></div>');
+      const list = el('<div class="table-wrap"><table><thead><tr><th>Date</th><th>From → To</th><th>Items</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table></div>');
       const tbody = list.querySelector('tbody');
       done.slice(0, 10).forEach((t) => {
         const tr = document.createElement('tr');
@@ -216,7 +271,15 @@ function renderStock(container) {
         }).join('<br>');
         tr.innerHTML = '<td>' + esc(fmtDate(t.date)) + '</td>' +
           '<td>' + esc(window.App.branchName(t.fromBranchId)) + ' → ' + esc(window.App.branchName(t.toBranchId)) + '</td>' +
-          '<td>' + itemsText + '</td><td>' + esc(t.status) + (t.discrepancy ? ' — ' + esc(t.discrepancy) : '') + '</td>';
+          '<td>' + itemsText + '</td><td>' + esc(t.status) + (t.discrepancy ? ' — ' + esc(t.discrepancy) : '') + '</td><td></td>';
+        const td = tr.lastElementChild;
+        if (canSeeBill) {
+          const billBtn = el('<button type="button" class="btn btn-sm">Bill</button>');
+          billBtn.addEventListener('click', () => { if (window.App.showTransferBill) window.App.showTransferBill(t); });
+          td.appendChild(billBtn);
+        } else {
+          td.textContent = '—';
+        }
         tbody.appendChild(tr);
       });
       card.appendChild(list);
