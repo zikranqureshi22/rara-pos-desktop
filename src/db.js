@@ -612,6 +612,15 @@ const DB = {
     if (item) return Number(item.cost != null ? item.cost : (item.purchasePrice || 0)) || 0;
     return 0;
   },
+  // Franchise cost basis (v1.1.8): the product's CURRENT franchisePrice
+  // — the rate the Owner charges the franchise per unit. Never the
+  // Owner's purchasePrice. A product that no longer exists contributes
+  // cost 0 (same as the franchise dashboard's math, which uses only
+  // the product's franchisePrice).
+  franchiseUnitCost(item, product) {
+    if (product) return Number(product.franchisePrice) || 0;
+    return 0;
+  },
   // Per-product sales / cost / profit for a list of sales. Only
   // successful sales count in the money totals; cancelled sales are
   // excluded entirely, and partial returns subtract only the returned
@@ -619,15 +628,19 @@ const DB = {
   // its returned qty shown) so the return stays visible; a cancelled
   // product gets no row at all. Costs are never invented: a product
   // with purchasePrice 0 contributes cost 0 (profit = sales) and sets
-  // the costZero flag so the UI can say so plainly.
+  // the costZero flag so the UI can say so plainly. costBasis (v1.1.8):
+  // 'owner' (default) uses purchasePrice; 'franchise' uses
+  // franchisePrice — the same numbers the Sales History profit stats
+  // show, so they match the Dashboard exactly for the same date.
   // Returns { rows: [{productId, name, qty, returned, revenue, cost,
   // profit, unitCost, costZero}], totals: {qty, returned, revenue,
   // cost, profit}, netSales, netProfit, costZero, orders, returns }.
   // netSales/netProfit are the accurate sale totals (net of returns,
   // successful sales only); the rows' revenue is the same number when
   // no bill-level discounts exist.
-  productWise(sales, products) {
+  productWise(sales, products, costBasis) {
     var self = this;
+    var basis = costBasis === 'franchise' ? 'franchise' : 'owner';
     var byId = {};
     (products || []).forEach(function (p) { byId[String(p.id)] = p; });
     var map = {};
@@ -647,7 +660,7 @@ const DB = {
         var key = pid != null ? pid : name;
         if (!map[key]) map[key] = { productId: pid, name: name, qty: 0, returned: 0, revenue: 0, cost: 0, profit: 0, unitCost: 0, costZero: false };
         var row = map[key];
-        var unitCost = self.ownerUnitCost(it, prod);
+        var unitCost = basis === 'franchise' ? self.franchiseUnitCost(it, prod) : self.ownerUnitCost(it, prod);
         row.unitCost = unitCost;
         if (!unitCost) row.costZero = true;
         var retQ = pid != null ? self.returnedQty(s, pid) : 0;

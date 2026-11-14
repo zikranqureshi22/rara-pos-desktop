@@ -696,9 +696,32 @@ function renderSales(container) {
     const total = successfulSales.reduce((a, s) => a + DB.netSaleTotal(s), 0);
     const returnsTotal = sales.reduce((a, s) => a + DB.returnsRefund(s), 0);
     const returnsCount = sales.filter((s) => DB.returnsRefund(s) > 0).length;
-    listWrap.appendChild(el('<div class="stat-grid"><div class="stat"><div class="stat-label">Total Sales</div><div class="stat-value">' + successfulSales.length + '</div><div class="stat-sub">' + sales.length + ' total record(s)</div></div>' +
-      '<div class="stat"><div class="stat-label">Total Amount</div><div class="stat-value">' + money(total) + '</div><div class="stat-sub">successful sales, returns minus</div></div>' +
-      '<div class="stat"><div class="stat-label">Returns</div><div class="stat-value">' + money(returnsTotal) + '</div><div class="stat-sub">' + returnsCount + ' sale(s) returned</div></div></div>'));
+    // v1.1.8: profit stats next to the existing stats — same filtered
+    // list (so they follow the same date selection), same v1.1.6 rules
+    // via DB.productWise, so they match the Dashboard exactly for the
+    // same date. Owner sees purchasePrice-based cost/profit; Franchise
+    // sees franchisePrice-based cost/profit (his own cost). Salesman,
+    // Cashier and every other role see NO cost/profit here at all.
+    const role = window.App.user && window.App.user.role;
+    const profitBasis = role === 'Owner' ? 'owner' : (role === 'Franchise' ? 'franchise' : null);
+    let profitStats = '';
+    if (profitBasis) {
+      const pw = DB.productWise(successfulSales, st.products || [], profitBasis);
+      profitStats = '<div class="stat"><div class="stat-label">Total Cost</div><div class="stat-value">' + money(pw.totals.cost) + '</div><div class="stat-sub">' + (profitBasis === 'franchise' ? 'cost = Franchise Price' : 'cost = Purchase Price') + '</div></div>' +
+        '<div class="stat"><div class="stat-label">Total Profit</div><div class="stat-value">' + money(pw.netProfit) + '</div><div class="stat-sub">sales − cost</div></div>';
+      listWrap.appendChild(el('<div class="stat-grid"><div class="stat"><div class="stat-label">Total Sales</div><div class="stat-value">' + successfulSales.length + '</div><div class="stat-sub">' + sales.length + ' total record(s)</div></div>' +
+        '<div class="stat"><div class="stat-label">Total Amount</div><div class="stat-value">' + money(total) + '</div><div class="stat-sub">successful sales, returns minus</div></div>' +
+        '<div class="stat"><div class="stat-label">Returns</div><div class="stat-value">' + money(returnsTotal) + '</div><div class="stat-sub">' + returnsCount + ' sale(s) returned</div></div>' + profitStats + '</div>'));
+      if (pw.costZero) {
+        listWrap.appendChild(el(profitBasis === 'franchise'
+          ? '<p style="font-size:12px;color:#f59e0b;margin-top:8px">Note: jin products ki Cost Rs 0 hai, unki Franchise Price Owner ne abhi set nahi ki — Products &gt; Edit &gt; Franchise Price se set karwayein, warna cost 0 aur profit zyada dikhega.</p>'
+          : '<p style="font-size:12px;color:#f59e0b;margin-top:8px">Note: kuch products ki Purchase Price (cost) abhi 0 hai — unka profit sales ke barabar dikh raha hai. Products &gt; Edit mein asal cost enter karein, phir profit sahi hoga.</p>'));
+      }
+    } else {
+      listWrap.appendChild(el('<div class="stat-grid"><div class="stat"><div class="stat-label">Total Sales</div><div class="stat-value">' + successfulSales.length + '</div><div class="stat-sub">' + sales.length + ' total record(s)</div></div>' +
+        '<div class="stat"><div class="stat-label">Total Amount</div><div class="stat-value">' + money(total) + '</div><div class="stat-sub">successful sales, returns minus</div></div>' +
+        '<div class="stat"><div class="stat-label">Returns</div><div class="stat-value">' + money(returnsTotal) + '</div><div class="stat-sub">' + returnsCount + ' sale(s) returned</div></div></div>'));
+    }
     const card = el('<div class="card"><div class="table-wrap"><table><thead><tr><th>Bill</th><th>Date</th><th>Branch</th><th>Cashier</th><th>Items</th><th>Total</th><th>Returned</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table></div></div>');
     const tbody = card.querySelector('tbody');
     sales.forEach((sale) => {
